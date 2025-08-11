@@ -25,7 +25,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 return response.json();
             })
             .then(data => {
-                // 【変更点】受け取ったdataオブジェクト全体を整形して表示する
+                // 受け取ったdataオブジェクト全体を整形して表示する
                 responseOutput.textContent = JSON.stringify(data, null, 2);
             })
             .catch(error => {
