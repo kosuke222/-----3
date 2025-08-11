@@ -7,4 +7,15 @@
 {% block content %}
 <h1>Test Page</h1>
 <p>Virustotal APIではどのような情報が取れるのかな？</p>
+<p>下のボタンを押して，APIを叩いてみよう！</p>
+<button id="test-button">Test API</button>
+
+<div id="result_area" style="margin-top: 20px;">
+	<h3> API Response: </h3>
+	<pre id="response-output" style="background-color: #f4f4f4; border: 1px solid #ddd; padding: 10px; white-space: pre-wrap; word-wrap: break-word;"></pre>
+</div>
+{% endblock %}
+
+{% block scripts %}
+	<script src="{{ url_for('static', filename='js/test.js') }}"></script>"
 {% endblock %}

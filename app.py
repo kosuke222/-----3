@@ -1,6 +1,9 @@
+import json
+import datetime
 import os
 from dotenv import load_dotenv
-from flask import Flask, render_template, request, redirect, url_for
+import requests
+from flask import Flask, render_template, request, redirect, url_for, jsonify
 
 # .envファイルから環境変数を読み込む
 load_dotenv()
@@ -9,11 +12,38 @@ app = Flask(__name__)
 
 # .envからVIRUSTOTAL_API_KEYを読み込む
 VIRUSTOTAL_API_KEY = os.getenv('VIRUSTOTAL_API_KEY')
+VIRUSTOTAL_API_URL = os.getenv('VIRUSTOTAL_API_URL')
 
-# 1. 起動直後に/に行くとtest.htmlを表示するエンドポイント
+# VIRUSTOTALからの出力を保存するファイルパス
+RESULTS_DIR = 'results'
+os.makedirs(RESULTS_DIR, exist_ok=True)
+
+#[test]起動直後に/に行くとtest.htmlを表示するエンドポイント
 @app.route('/')
 def index():
     return render_template('test.html')
+
+#[test]APIを叩くエンドポイント
+@app.route('/api/test', methods=['GET'])
+def api_test():
+    headers = {
+        'x-apikey': VIRUSTOTAL_API_KEY
+    }
+    try:
+        response = requests.get(VIRUSTOTAL_API_URL, headers=headers)
+        response.raise_for_status()
+        api_data = response.json()
+        # ファイルに保存する処理
+        timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+        file_name = f'results/virustotal_api_response_{timestamp}.json'
+        file_path = os.path.json(RESULTS_DIR, file_name)
+        with open(file_path, 'w') as file:
+            json.dump(api_data, file, ensure_ascii=False,indent=4)
+        return jsonify(api_data)
+    except requests.exceptions.RequestException as e:
+        return jsonify({'error': str(e)}), 500
+    except Exception as e:
+        return jsonify({'error': 'An unexpected error occurred: ' + str(e)}), 500
 
 # G-001 ログイン画面
 @app.route('/login', methods=['GET', 'POST'])
