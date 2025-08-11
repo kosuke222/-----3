@@ -1,7 +1,7 @@
 document.addEventListener('DOMContentLoaded', function() {
 	const testButton = document.createElement('test-button');
 	const responseOutput = document.getElementById('response-output');
-	document.getElementById('testButton').addEventListener('click', function() {
+	document.getElementById('test-button').addEventListener('click', function() {
 		responseOutput.textContent = "送信中";
 		fetch('/api/test',{
 			method: 'GET'

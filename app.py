@@ -29,21 +29,38 @@ def api_test():
     headers = {
         'x-apikey': VIRUSTOTAL_API_KEY
     }
+    api_url = os.getenv('VIRUSTOTAL_API_URL')
+    if not api_url:
+        return jsonify({'error': 'VIRUSTOTAL_API_URLが.envファイルに設定されていません。'}), 500
+
     try:
-        response = requests.get(VIRUSTOTAL_API_URL, headers=headers)
-        response.raise_for_status()
-        api_data = response.json()
-        # ファイルに保存する処理
-        timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
-        file_name = f'results/virustotal_api_response_{timestamp}.json'
-        file_path = os.path.json(RESULTS_DIR, file_name)
-        with open(file_path, 'w') as file:
-            json.dump(api_data, file, ensure_ascii=False,indent=4)
-        return jsonify(api_data)
+        response = requests.get(api_url, headers=headers)
+
+        if response.status_code == 200:
+            api_data = response.json()
+            
+            # --- ファイル保存処理 ---
+            timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+            
+            file_name = f'virustotal_api_response_{timestamp}.json'
+            
+            file_path = os.path.join(RESULTS_DIR, file_name)
+            
+            with open(file_path, 'w', encoding='utf-8') as file:
+                json.dump(api_data, file, ensure_ascii=False, indent=4)
+            
+            return jsonify(api_data), 200
+
+        elif response.status_code == 404:
+            return jsonify({'message': 'このハッシュ値のレポートはVirusTotalのデータベースに見つかりませんでした。'}), 200
+
+        else:
+            response.raise_for_status()
+            
     except requests.exceptions.RequestException as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': f'APIリクエストエラー: {e}'}), 500
     except Exception as e:
-        return jsonify({'error': 'An unexpected error occurred: ' + str(e)}), 500
+        return jsonify({'error': f'予期せぬサーバーエラー: {e}'}), 500
 
 # G-001 ログイン画面
 @app.route('/login', methods=['GET', 'POST'])
