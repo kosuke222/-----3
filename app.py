@@ -33,6 +33,7 @@ def extract_report_data(files_data, behaviours_data):
     2つのAPIレスポンスからレポートに必要な情報を抽出し、整形する関数
     """
     report = {
+        "mitre_attack_summary": {},
         "file_basic_info": {},
         "specimen_info": {},
         "communication_destination": {},
@@ -46,6 +47,7 @@ def extract_report_data(files_data, behaviours_data):
     
     report["file_basic_info"] = {
         "file_name": safe_get(f_attr, ['meaningful_name']),
+        "file_type_tags": safe_get(f_attr, ['type_tags'], []),
         "all_file_names": safe_get(f_attr, ['names'], []),
         "file_size": safe_get(f_attr, ['size']),
         "sha256_hash": safe_get(f_attr, ['sha256'])
@@ -55,6 +57,7 @@ def extract_report_data(files_data, behaviours_data):
     vendor_results = safe_get(f_attr, ['last_analysis_results'], {})
     report["specimen_info"] = {
         "suggested_malware_name": safe_get(classification, ['suggested_threat_label']),
+        "signature_info": safe_get(f_attr, ['signature_info'], {}),
         "vendor_malware_names": {vendor: result.get('result') for vendor, result in vendor_results.items() if result.get('result')},
         "classification": [cat.get('value') for cat in safe_get(classification, ['popular_threat_category'], [])],
         "first_submitted_date": safe_get(f_attr, ['first_submission_date'])
@@ -66,75 +69,109 @@ def extract_report_data(files_data, behaviours_data):
 
     report["ioc"]["sha256_hash"] = safe_get(f_attr, ['sha256'])
 
-    # --- 2. /behaviours APIからの情報抽出 ---
-    all_ips = set()
+    # --- 2. /behaviours APIからの情報抽出と整形 ---
+    resolved_ips_from_dns = set()
     all_urls = set()
     file_ops = set()
     deleted_files = set()
     process_trees = []
-    similar_behaviors = []
-    env_recognition = []
-    defense_evasion = []
-    payload_evidence = []
-    
+    unique_sigma_titles = set()
+    mitre_techniques = {}
+    api_calls_recognition = set()
+    defense_evasion = set()
+    payload_evidence = set()
+    tls_fingerprints = set()
+
     if behaviours_data and 'data' in behaviours_data:
+        # 最初にDNS解決されたIPをすべて収集
+        for behaviour in behaviours_data.get('data', []):
+            b_attr = behaviour.get('attributes', {})
+            for lookup in b_attr.get('dns_lookups', []):
+                if lookup.get('resolved_ips'):
+                    for ip in lookup.get('resolved_ips'):
+                        resolved_ips_from_dns.add(ip)
+
+        # 各サンドボックスレポートを処理
         for behaviour in behaviours_data.get('data', []):
             b_attr = behaviour.get('attributes', {})
             
-            # 通信先
-            for traffic in b_attr.get('ip_traffic', []):
-                all_ips.add(f"{traffic.get('destination_ip')}:{traffic.get('destination_port')}")
+            # MITRE ATT&CK
+            for technique in b_attr.get('mitre_attack_techniques', []):
+                technique_id = technique.get('id')
+                if technique_id and technique_id not in mitre_techniques:
+                    mitre_techniques[technique_id] = technique.get('signature_description')
+            
+            # 通信先URLとTLSフィンガープリント
             for lookup in b_attr.get('dns_lookups', []):
-                all_urls.add(lookup.get('hostname'))
+                if lookup.get('hostname'): all_urls.add(lookup.get('hostname'))
             for convo in b_attr.get('http_conversations', []):
-                all_urls.add(convo.get('url'))
+                if convo.get('url'): all_urls.add(convo.get('url'))
+            for tls in b_attr.get('tls', []):
+                if tls.get('ja3') or tls.get('ja3s'):
+                    tls_fingerprints.add((tls.get('ja3'), tls.get('ja3s')))
 
             # 検体の挙動
             for f in b_attr.get('files_dropped', []): file_ops.add(f.get('path'))
             for f in b_attr.get('files_deleted', []): deleted_files.add(f)
             if b_attr.get('processes_tree'): process_trees.append(b_attr.get('processes_tree'))
-            
             for result in b_attr.get('sigma_analysis_results', []):
-                similar_behaviors.append(f"{result.get('rule_title')}: {result.get('rule_description')}")
-            
-            for call in b_attr.get('calls_highlighted', []):
-                if 'IsDebuggerPresent' in call: env_recognition.append(call)
+                if result.get('rule_title'): unique_sigma_titles.add(result.get('rule_title'))
+            for call in b_attr.get('calls_highlighted', []): api_calls_recognition.add(call)
             
             for result in b_attr.get('sigma_analysis_results', []):
                 title = result.get('rule_title', '').lower()
                 if 'defender exclusion' in title or 'disable uac' in title:
-                    defense_evasion.append(result.get('rule_title'))
+                    defense_evasion.add(result.get('rule_title'))
             
             for key in b_attr.get('registry_keys_set', []):
                 if 'currentversion\\run' in key.get('key', '').lower():
-                    defense_evasion.append(f"Set Autorun Registry Key: {key.get('key')}")
+                    defense_evasion.add(f"Set Autorun Registry Key: {key.get('key')}")
 
             for sig in b_attr.get('signature_matches', []):
                 if 'harvest and steal' in sig.get('description', '').lower():
-                    payload_evidence.append(sig.get('description'))
+                    payload_evidence.add(sig.get('description'))
             
             for key in b_attr.get('registry_keys_opened', []):
                 if any(browser in key for browser in ['Chrome\\User Data\\Default\\Login Data', 'Firefox', 'IncrediMail']):
-                    payload_evidence.append(f"Accessed credential storage: {key}")
+                    payload_evidence.add(f"Accessed credential storage: {key}")
 
-    # --- 3. レポートにまとめる ---
+    # --- 3. 抽出した情報をレポートにまとめる ---
+    # DNS解決されたIPのみをフィルタリング
+    important_ips = set()
+    if behaviours_data and 'data' in behaviours_data:
+        for behaviour in behaviours_data.get('data', []):
+            b_attr = behaviour.get('attributes', {})
+            for traffic in b_attr.get('ip_traffic', []):
+                dest_ip = traffic.get('destination_ip')
+                if dest_ip in resolved_ips_from_dns:
+                    important_ips.add(f"{dest_ip}:{traffic.get('destination_port')}")
+
+    report["mitre_attack_summary"] = mitre_techniques
+
     report["communication_destination"] = {
-        "ip_addresses": sorted(list(all_ips)),
+        "important_ip_addresses": sorted(list(important_ips)),
         "urls": sorted([url for url in all_urls if url])
     }
     
     report["specimen_behavior"] = {
         "file_operations": sorted(list(file_ops)),
         "process_tree": process_trees,
-        "similar_behaviors_sigma": similar_behaviors,
-        "environment_recognition": env_recognition + safe_get(f_attr, ['tags'], []),
-        "defense_evasion": defense_evasion,
-        "payload_content_evidence": payload_evidence,
+        "similar_behaviors_sigma": sorted(list(unique_sigma_titles)),
+        "environment_recognition": {
+            "tags": safe_get(f_attr, ['tags'], []),
+            "api_calls": sorted(list(api_calls_recognition))
+        },
+        "defense_evasion": sorted(list(defense_evasion)),
+        "payload_content_evidence": sorted(list(payload_evidence)),
         "trace_erasure": sorted(list(deleted_files))
     }
     
-    report["ioc"]["ip_addresses"] = sorted(list(all_ips))
-    report["ioc"]["urls"] = sorted([url for url in all_urls if url])
+    report["ioc"] = {
+        **report["ioc"], # 既存のsha256を維持
+        "ip_addresses": sorted(list(important_ips)),
+        "urls": sorted([url for url in all_urls if url]),
+        "tls_fingerprints": [{"ja3": ja3, "ja3s": ja3s} for ja3, ja3s in sorted(list(tls_fingerprints))] # 【追加】
+    }
 
     return report
 
