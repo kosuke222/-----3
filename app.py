@@ -72,15 +72,19 @@ def extract_report_data(files_data, behaviours_data):
     # --- 2. /behaviours APIからの情報抽出と整形 ---
     resolved_ips_from_dns = set()
     all_urls = set()
-    file_ops = set()
-    deleted_files = set()
-    process_trees = []
-    unique_sigma_titles = set()
-    mitre_techniques = {}
-    api_calls_recognition = set()
-    defense_evasion = set()
-    payload_evidence = set()
     tls_fingerprints = set()
+    mitre_techniques = {}
+    
+    # 検体の挙動に関する情報を集約するためのセット
+    files_created = set()
+    files_deleted = set()
+    files_opened = set()
+    files_written = set()
+    registry_opened = set()
+    registry_set = set()
+    registry_deleted = set()
+    process_trees = []
+    payload_evidence = set()
 
     if behaviours_data and 'data' in behaviours_data:
         # 最初にDNS解決されたIPをすべて収集
@@ -88,18 +92,17 @@ def extract_report_data(files_data, behaviours_data):
             b_attr = behaviour.get('attributes', {})
             for lookup in b_attr.get('dns_lookups', []):
                 if lookup.get('resolved_ips'):
-                    for ip in lookup.get('resolved_ips'):
-                        resolved_ips_from_dns.add(ip)
+                    resolved_ips_from_dns.update(lookup.get('resolved_ips', []))
 
         # 各サンドボックスレポートを処理
         for behaviour in behaviours_data.get('data', []):
             b_attr = behaviour.get('attributes', {})
             
             # MITRE ATT&CK
-            for technique in b_attr.get('mitre_attack_techniques', []):
-                technique_id = technique.get('id')
-                if technique_id and technique_id not in mitre_techniques:
-                    mitre_techniques[technique_id] = technique.get('signature_description')
+            for tech in b_attr.get('mitre_attack_techniques', []):
+                tech_id = tech.get('id')
+                if tech_id and tech_id not in mitre_techniques:
+                    mitre_techniques[tech_id] = tech.get('signature_description')
             
             # 通信先URLとTLSフィンガープリント
             for lookup in b_attr.get('dns_lookups', []):
@@ -110,33 +113,52 @@ def extract_report_data(files_data, behaviours_data):
                 if tls.get('ja3') or tls.get('ja3s'):
                     tls_fingerprints.add((tls.get('ja3'), tls.get('ja3s')))
 
-            # 検体の挙動
-            for f in b_attr.get('files_dropped', []): file_ops.add(f.get('path'))
-            for f in b_attr.get('files_deleted', []): deleted_files.add(f)
+            # 検体の挙動 (ファイル、レジストリ、プロセス)
+            for f in b_attr.get('files_dropped', []): files_created.add(f.get('path'))
+            for f in b_attr.get('files_written', []): files_written.add(f)
+            for f in b_attr.get('files_opened', []): files_opened.add(f)
+            for f in b_attr.get('files_deleted', []): files_deleted.add(f)
+            
+            for k in b_attr.get('registry_keys_opened', []): registry_opened.add(k)
+            for k in b_attr.get('registry_keys_set', []): registry_set.add(f"{k.get('key')} = {k.get('value')}")
+            for k in b_attr.get('registry_keys_deleted', []): registry_deleted.add(k)
+            
             if b_attr.get('processes_tree'): process_trees.append(b_attr.get('processes_tree'))
-            for result in b_attr.get('sigma_analysis_results', []):
-                if result.get('rule_title'): unique_sigma_titles.add(result.get('rule_title'))
-            for call in b_attr.get('calls_highlighted', []): api_calls_recognition.add(call)
-            
-            for result in b_attr.get('sigma_analysis_results', []):
-                title = result.get('rule_title', '').lower()
-                if 'defender exclusion' in title or 'disable uac' in title:
-                    defense_evasion.add(result.get('rule_title'))
-            
-            for key in b_attr.get('registry_keys_set', []):
-                if 'currentversion\\run' in key.get('key', '').lower():
-                    defense_evasion.add(f"Set Autorun Registry Key: {key.get('key')}")
 
+            # 【改良】汎用的なペイロードの証拠を収集
+            # ランサムウェアの証拠
+            for f in b_attr.get('files_dropped', []):
+                path = f.get('path', '').lower()
+                if 'ransom' in path or 'decrypt' in path or 'readme.txt' in path:
+                    payload_evidence.add(f"Ransom Note Dropped: {f.get('path')}")
+            for cmd in b_attr.get('command_executions', []):
+                if 'vssadmin' in cmd.lower() and 'delete shadows' in cmd.lower():
+                    payload_evidence.add(f"Shadow Copy Deletion Attempted: {cmd}")
+            
+            # ダウンローダー/ドロッパーの証拠
+            dropped_executables = {f.get('path').lower() for f in b_attr.get('files_dropped', []) if f.get('path') and f.get('path').lower().endswith(('.exe', '.dll', '.ps1', '.bat'))}
+            if dropped_executables:
+                for proc in b_attr.get('processes_created', []):
+                    # コマンドライン全体を小文字にして比較
+                    proc_lower = proc.lower()
+                    for exe in dropped_executables:
+                        if exe in proc_lower:
+                            payload_evidence.add(f"Dropped File Executed: {proc}")
+            
+            # RAT/バックドアの証拠
+            for sig in b_attr.get('signature_matches', []):
+                if 'c2 communication' in sig.get('description', '').lower():
+                    payload_evidence.add("C2 Communication Pattern Detected")
+            
+            # 情報窃取型マルウェアの証拠
             for sig in b_attr.get('signature_matches', []):
                 if 'harvest and steal' in sig.get('description', '').lower():
                     payload_evidence.add(sig.get('description'))
-            
             for key in b_attr.get('registry_keys_opened', []):
                 if any(browser in key for browser in ['Chrome\\User Data\\Default\\Login Data', 'Firefox', 'IncrediMail']):
-                    payload_evidence.add(f"Accessed credential storage: {key}")
+                    payload_evidence.add(f"Accessed Credential Storage: {key}")
 
     # --- 3. 抽出した情報をレポートにまとめる ---
-    # DNS解決されたIPのみをフィルタリング
     important_ips = set()
     if behaviours_data and 'data' in behaviours_data:
         for behaviour in behaviours_data.get('data', []):
@@ -147,30 +169,32 @@ def extract_report_data(files_data, behaviours_data):
                     important_ips.add(f"{dest_ip}:{traffic.get('destination_port')}")
 
     report["mitre_attack_summary"] = mitre_techniques
-
     report["communication_destination"] = {
         "important_ip_addresses": sorted(list(important_ips)),
         "urls": sorted([url for url in all_urls if url])
     }
     
     report["specimen_behavior"] = {
-        "file_operations": sorted(list(file_ops)),
-        "process_tree": process_trees,
-        "similar_behaviors_sigma": sorted(list(unique_sigma_titles)),
-        "environment_recognition": {
-            "tags": safe_get(f_attr, ['tags'], []),
-            "api_calls": sorted(list(api_calls_recognition))
+        "file_operations": {
+            "created": sorted([f for f in files_created if f]),
+            "deleted": sorted([f for f in files_deleted if f]),
+            "opened": sorted([f for f in files_opened if f]),
+            "written": sorted([f for f in files_written if f])
         },
-        "defense_evasion": sorted(list(defense_evasion)),
-        "payload_content_evidence": sorted(list(payload_evidence)),
-        "trace_erasure": sorted(list(deleted_files))
+        "registry_key_operations": {
+            "opened": sorted([k for k in registry_opened if k]),
+            "set": sorted([k for k in registry_set if k]),
+            "deleted": sorted([k for k in registry_deleted if k])
+        },
+        "process_tree": process_trees,
+        "payload_content_evidence": sorted(list(payload_evidence))
     }
     
     report["ioc"] = {
-        **report["ioc"], # 既存のsha256を維持
+        **report["ioc"],
         "ip_addresses": sorted(list(important_ips)),
         "urls": sorted([url for url in all_urls if url]),
-        "tls_fingerprints": [{"ja3": ja3, "ja3s": ja3s} for ja3, ja3s in sorted(list(tls_fingerprints))] # 【追加】
+        "tls_fingerprints": [{"ja3": ja3, "ja3s": ja3s} for ja3, ja3s in sorted(list(tls_fingerprints))]
     }
 
     return report
