@@ -3,7 +3,7 @@ import datetime
 import os
 from dotenv import load_dotenv
 import requests
-from flask import Flask, render_template, request, redirect, url_for, jsonify
+from flask import Flask, render_template, request, redirect, url_for, jsonify, flash
 
 # .envファイルから環境変数を読み込む
 load_dotenv(dotenv_path='.env.flask')
@@ -202,7 +202,7 @@ def extract_report_data(files_data, behaviours_data):
 #[test]起動直後に/に行くとtest.htmlを表示するエンドポイント
 @app.route('/')
 def index():
-    return render_template('test.html')
+    return render_template('test.html',page_title='API Test page')
 
 #[test]APIを叩くエンドポイント
 @app.route('/api/test', methods=['GET'])
