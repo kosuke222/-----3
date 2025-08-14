@@ -1,3 +1,4 @@
-.env
+.env.flask
+.env.db
 venv
 results/
