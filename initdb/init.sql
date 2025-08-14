@@ -43,9 +43,8 @@ COMMENT ON COLUMN reports.report_markdown IS 'レポートのMarkdown形式の�
 
 --データ定義
 INSERT INTO roles(role) VALUES ('admin'), ('user');
--- password = samplepassword123
 INSERT INTO users(username, email, password) VALUES
-('sample1', 'sample1@example.com', '939df7041bf1335331984ab87f0a4f400f54386a5a84087e5cd1ec5a16ac3ecc');
+('sample1', 'sample1@example.com', 'your_hashed_password_here');
 
 -- sample1はuser権限を持つ
 INSERT INTO user_roles(user_id, role_id) VALUES (1, 2);
