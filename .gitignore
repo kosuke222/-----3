@@ -2,3 +2,4 @@
 .env.db
 venv
 results/
+initdb/init.sql
