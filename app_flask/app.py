@@ -6,7 +6,7 @@ import requests
 from flask import Flask, render_template, request, redirect, url_for, jsonify
 
 # .envファイルから環境変数を読み込む
-load_dotenv()
+load_dotenv(dotenv_path='.env.flask')
 
 app = Flask(__name__)
 
