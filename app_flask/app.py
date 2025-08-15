@@ -4,20 +4,26 @@ import os
 from dotenv import load_dotenv
 import requests
 from flask import Flask, render_template, request, redirect, url_for, jsonify, flash
+from openai import OpenAI
 
 # .envファイルから環境変数を読み込む
 load_dotenv(dotenv_path='.env.flask')
 
 app = Flask(__name__)
 
-# .envからVIRUSTOTAL_API_KEYを読み込む
+# .env.flaskからVIRUSTOTAL_API_KEYを読み込む
 VIRUSTOTAL_API_KEY = os.getenv('VIRUSTOTAL_API_KEY')
 VIRUSTOTAL_FILE_API_URL = os.getenv('VIRUSTOTAL_FILE_API_URL')
 VIRUSTOTAL_BEHAVE_API_URL = os.getenv('VIRUSTOTAL_BEHAVE_API_URL')
+# .env.flaskからOpenAI APIキーを読み込む
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 
 # VIRUSTOTALからの出力を保存するファイルパス
 RESULTS_DIR = 'results'
 os.makedirs(RESULTS_DIR, exist_ok=True)
+
+# OpenAIのAPIを使用するための設定
+client = OpenAI(api_key=OPENAI_API_KEY)
 
 # 安全に辞書から値を取得するヘルパー関数
 # キーが存在しない場合はデフォルト値を返す
@@ -199,6 +205,101 @@ def extract_report_data(files_data, behaviours_data):
 
     return report
 
+#[test]OpenAI_APIのweb_searchを叩く関数
+def web_search(malware_family_name: str) -> dict | None:
+    """
+    OpenAI APIを使用して、マルウェアファミリ名に基づく情報を検索する関数
+    """
+    if not malware_family_name:
+        print("マルウェアファミリ名が空です。")
+        return None
+    # 当該マルウェアファミリの一般的な挙動についての検索
+    messages= [
+        {
+            "role": "system",
+            "content": """あなたはマルウェア解析の専門家です。提供されたマルウェアファミリ名に基づいて，以下のJSON形式で情報を調査し報告してください。各項目は具体的に記述してください。また、流行度について調査する際は、直近1年以内のセキュリティベンダーの脅威レポート、セキュリティ専門家のブログ、公的機関の注意喚起などを重点的に参照してください。\n
+            形式:
+            {
+                "investigated_family_name": "提供されたマルウェアファミリ名",
+                "general_behavior": {
+                    "summary": "マルウェアの概要",
+                    "initial_compromise": "初期侵入の方法",
+                    "payload_behavior": "感染後のペイロードの挙動",
+                    "c2_communication": "C2サーバーとの通信方式や特徴",
+                    "other_features": "その他執筆すべき技術的な特徴"
+                },
+                "attack_cases": [
+                    {
+                        "case_title": "攻撃事例1のタイトル",
+                        "case_summary": "攻撃事例1の概要(時期、標的、影響，ソースリンクなど)"
+                    },
+                    {
+                        "case_title": "攻撃事例2のタイトル",
+                        "case_summary": "攻撃事例2の概要(時期、標的、影響，ソースリンクなど)"
+                    }
+                ],
+                "popularity_assessment": [
+                    {
+                        "activity_level": "観測データやレポートを基に、活動レベルを「非常に活発」「活発」「中程度」「低」のいずれかで評価してください。",
+                        "trend": "直近の活動状況から、脅威の動向を「増加傾向」「横ばい」「減少傾向」のいずれかで評価してください。",
+                        "recent_reports_summary": [
+                            {
+                                "source": "参照した情報の発行元や著者名 (例: Trend Micro, JPCERT/CC)",
+                                "title": "参照したレポートやブログ記事のタイトル",
+                                "published_data": "公開日, YYYY-MM-DD",
+                                "summary": "その情報源から判断できる流行度に関する内容を具体的に要約してください。"
+                            }
+                        ],
+                        "targeted_regions": ["攻撃が主に観測されている国や地域をリストアップしてください。"],
+                        "targeted_sectors": ["主な標的となっている業種をリストアップしてください。"],
+                        "overall_summary": "上記で得られた情報を総合的に分析し、なぜその活動レベルや傾向と判断したのか、理由を簡潔に記述してください。"
+                    }
+                ]
+            }"""
+        },
+        {
+            "role": "user",
+            "content": f"マルウェアファミリ名: {malware_family_name} の一般的な挙動と、関連するサイバー攻撃事案について調査してください。"
+        }
+    ]
+    try:
+        print(f"{malware_family_name}の情報を検索します...")
+        response = client.responses.create(
+        model="gpt-5-mini",
+        tools=[{"type": "web_search_preview"}],
+        input=messages
+        )
+        return response.to_dict() if hasattr(response, 'to_dict') else json.loads(response.json())
+
+    except Exception as e:
+        print(f"OpenAI APIの呼び出し中に予期せぬエラーが発生しました: {e}")
+        return None
+
+#[test] レスポンスからデータ抽出
+def extract_osint_json_from_response(response_dict: dict) -> dict | None:
+    """
+    OpenAI APIのカスタムレスポンス構造から, 最終的なJSONコンテンツを安全に抽出する関数
+    """
+    if not response_dict:
+        return None
+    try:
+        output_list = response_dict.get("output", [])
+        message_object = next((item for item in output_list if item.get("type") == "message"), None)
+
+        if message_object:
+            content_list = message_object.get("content", [])
+            if content_list and isinstance(content_list, list) and len(content_list) > 0:
+                message_content_text = content_list[0].get("text")
+                if message_content_text:
+                    return json.loads(message_content_text)
+
+    except json.JSONDecodeError as e:
+        print(f"抽出したテキストのJSONパースに失敗しました。{e}")
+    except Exception as e:
+        print(f"レスポンス解析中に予期せぬエラーが発生しました。{e}")
+    print("レスポンスから目的のコンテンツを抽出できませんでした。")
+    return None
+
 #[test]起動直後に/に行くとtest.htmlを表示するエンドポイント
 @app.route('/')
 def index():
@@ -213,7 +314,7 @@ def api_test():
     file_api_url = VIRUSTOTAL_FILE_API_URL
     behave_api_url = VIRUSTOTAL_BEHAVE_API_URL
     if not file_api_url or not behave_api_url:
-        return jsonify({'error': 'VIRUSTOTAL_API_URLが.envファイルに設定されていません。'}), 500
+        return jsonify({'error': 'VIRUSTOTAL_API_URLが.env.flaskファイルに設定されていません。'}), 500
 
     try:
         # /files/{SHA256ハッシュ値}エンドポイントを叩く処理
@@ -232,7 +333,23 @@ def api_test():
 
         # 2つのレスポンスから必要な情報を抽出する関数
         report_data = extract_report_data(files_data, behaviours_data)
-
+        # マルウェアファミリ名抽出
+        malware_family_name = report_data.get('specimen_info', {}).get('suggested_malware_name')
+        # OpenAI APIを叩く関数
+        if malware_family_name:
+            # OpenAI APIの呼び出し
+            api_response = web_search(malware_family_name)
+            #レスポンスから目的のJSONを抽出
+            osint_data = extract_osint_json_from_response(api_response)
+            if osint_data:
+                report_data['osint_investigation'] = osint_data
+                print("OSINT情報の取得とレポートへの追加が完了しました。")
+            else:
+                print("OSINT情報の取得，または解析に失敗しました。スキップします。")
+        else:
+            print("マルウェアファミリ名を見つけられませんでした。OSINT調査をスキップします。")
+        
+        # TODO: malware buzzer APIの処理の実装
         # レポートを保存
         timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
         file_name = f'virustotal_report_{timestamp}.json'
@@ -241,6 +358,11 @@ def api_test():
         with open(file_path, 'w', encoding='utf-8') as f:
             json.dump(report_data, f, ensure_ascii=False, indent=4)
         return jsonify(report_data), 200
+    except requests.exceptions.HTTPError as e:
+        return jsonify({
+            'error': f'APIリクエストエラー: {e.response.status_code}',
+            'message': e.response.text
+        }), e.response.status_code
     except requests.exceptions.RequestException as e:
         return jsonify({'error': f'APIリクエストエラー: {e}'}), 500
     except Exception as e:
