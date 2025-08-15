@@ -255,6 +255,9 @@ def web_search(malware_family_name: str) -> dict | None:
                         "overall_summary": "上記で得られた情報を総合的に分析し、なぜその活動レベルや傾向と判断したのか、理由を簡潔に記述してください。"
                     }
                 ]
+                ###指示###
+                上記のJSON形式に厳密に従ってください。
+                JSONオブジェクトのみを出力し、前後のテキスト、補足、挨拶、マークダウンのjsonなどは一切含めないでください。
             }"""
         },
         {
@@ -290,8 +293,13 @@ def extract_osint_json_from_response(response_dict: dict) -> dict | None:
             content_list = message_object.get("content", [])
             if content_list and isinstance(content_list, list) and len(content_list) > 0:
                 message_content_text = content_list[0].get("text")
-                if message_content_text:
-                    return json.loads(message_content_text)
+                if message_content_text and isinstance(message_content_text, str):
+                    start_index = message_content_text.find('{')
+                    end_index = message_content_text.find('}')
+
+                    if start_index != -1 and end_index != -1 and start_index < end_index:
+                        json_str = message_content_text[start_index:end_index + 1]
+                        return json.loads(message_content_text)
 
     except json.JSONDecodeError as e:
         print(f"抽出したテキストのJSONパースに失敗しました。{e}")
