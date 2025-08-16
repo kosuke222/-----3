@@ -4,3 +4,4 @@ SQLAlchemy
 Flask-SQLAlchemy
 python-dotenv
 requests
+openai
