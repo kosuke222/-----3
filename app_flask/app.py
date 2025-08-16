@@ -4,20 +4,30 @@ import os
 from dotenv import load_dotenv
 import requests
 from flask import Flask, render_template, request, redirect, url_for, jsonify, flash
+from openai import OpenAI
+import time
 
 # .envファイルから環境変数を読み込む
 load_dotenv(dotenv_path='.env.flask')
 
 app = Flask(__name__)
 
-# .envからVIRUSTOTAL_API_KEYを読み込む
+# .env.flaskからVIRUSTOTAL_API_KEYを読み込む
 VIRUSTOTAL_API_KEY = os.getenv('VIRUSTOTAL_API_KEY')
-VIRUSTOTAL_FILE_API_URL = os.getenv('VIRUSTOTAL_FILE_API_URL')
-VIRUSTOTAL_BEHAVE_API_URL = os.getenv('VIRUSTOTAL_BEHAVE_API_URL')
+VIRUSTOTAL_FILE_API_URL="https://www.virustotal.com/api/v3/files/"
+#VIRUSTOTAL_BEHAVE_API_URL = os.getenv('VIRUSTOTAL_BEHAVE_API_URL')
+# .env.flaskからOpenAI APIキーを読み込む
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+# .env.flaskからMalwareBazaarAPIキーを読み込む
+MALWAREBAZAAR_API_KEY = os.getenv('MALWAREBAZAAR_API_KEY')
+MALWAREBAZAAR_API_URL = "https://mb-api.abuse.ch/api/v1/"
 
 # VIRUSTOTALからの出力を保存するファイルパス
 RESULTS_DIR = 'results'
 os.makedirs(RESULTS_DIR, exist_ok=True)
+
+# OpenAIのAPIを使用するための設定
+client = OpenAI(api_key=OPENAI_API_KEY)
 
 # 安全に辞書から値を取得するヘルパー関数
 # キーが存在しない場合はデフォルト値を返す
@@ -27,7 +37,50 @@ def safe_get(data, keys, default=None):
             return default
         data = data.get(key, default)
     return data if data is not None else default
+
+# リクエスト制限対策
+def wait_until_utc_midnight():
+    now = datetime.datetime.now(datetime.timezone.utc)
+    tomorrow = now + datetime.timedelta(days=1)
+    midnight = tomorrow.replace(hour=0, minute=0, second=0, microsecond=0)
+    wait_seconds = (midnight - now).total_seconds()
+    print(f"UTC深夜0時まで {wait_seconds:0f} 秒待機します。")
+    time.sleep(wait_seconds)
+
+# Virustotalから基本情報を取得する
+def get_virustotal_data(sha256_hash: str) -> tuple[dict | None, dict | None]:
+    headers = {
+        'x-apikey': VIRUSTOTAL_API_KEY
+    }
+    files_url = f"{VIRUSTOTAL_FILE_API_URL}{sha256_hash}"
+    behaviours_url = f"{files_url}/behaviours"
+    files_data, behaviours_data = None, None
+    try:
+        time.sleep(15)
+        files_response = requests.get(files_url, headers=headers, timeout=15)
+        if files_response.status_code == 429:
+            print(f"VirusTotal APIのリクエスト制限に達しました。")
+            wait_until_utc_midnight()
+            return get_virustotal_data(sha256_hash)
         
+        files_response.raise_for_status()
+        files_data = files_response.json()
+
+        time.sleep(15)
+        behaviours_response = requests.get(behaviours_url, headers=headers, timeout=15)
+        if behaviours_response.status_code == 429:
+            print(f"VirusTotal APIのリクエスト制限に達しました。")
+            wait_until_utc_midnight()
+            return get_virustotal_data(sha256_hash)
+
+        if behaviours_response.ok:
+            behaviours_data = behaviours_response.json()
+    except requests.exceptions.RequestException as e:
+        print(f"VirusTotal APIリクエストエラー ({sha256_hash}): {e}")
+    except Exception as e:
+        print(f"{e}")
+    return files_data, behaviours_data
+
 def extract_report_data(files_data, behaviours_data):
     """
     2つのAPIレスポンスからレポートに必要な情報を抽出し、整形する関数
@@ -199,6 +252,178 @@ def extract_report_data(files_data, behaviours_data):
 
     return report
 
+#[test] Malware_Bazaar 関連関数
+def get_similar_hashes_from_malwarebazaar(family_name: str, limit: int = 3) -> list[str] | None:
+    if not MALWAREBAZAAR_API_KEY:
+        print("MalwareBazaarのAPIキーが設定されていないため、類似検体検索をストップします。")
+        return None
+    print(f"[*] マルウェアファミリ '{family_name}' に類似する検体を検索中...")
+    try:
+        headers = {'Auth-Key': MALWAREBAZAAR_API_KEY}
+        data = {'query': 'get_siginfo', 'signature': family_name, 'limit': limit}
+        response = requests.post(MALWAREBAZAAR_API_URL, data=data, headers=headers, timeout=15)
+        response.raise_for_status()
+        response_json = response.json()
+        query_status = response_json.get('query_status')
+        if query_status == 'ok':
+            samples = response_json.get('data', [])
+            hashes = [s.get('sha256_hash') for s in samples if s.get('sha256_hash')]
+            return hashes
+        elif query_status in ['no_results', 'illegal_status']:
+            print(f"'{family_name}'の結果: {query_status}")
+            return []
+        else:
+            print(f"[!] APIエラー: {response_json.get('query_status')}")
+            return None
+    except requests.exceptions.RequestException as e:
+        print(f"[!] リクエストエラーが発生しました: {e}")
+        return None
+
+# 反復検索
+def search_similar_hashes_iteratively(original_family_name: str) -> list[str] | None:
+    if not original_family_name:
+        return None
+    
+    parts = original_family_name.replace('/', '.').split('.')
+
+    search_terms = []
+    if len(parts) > 1:
+        search_terms.append(original_family_name.replace('/','.'))
+    search_terms.extend(reversed(parts))
+
+    unique_search_terms = list(dict.fromkeys(search_terms))
+
+    for term in unique_search_terms:
+        print(f"[*] MalwareBazaarでファミリ'{term}'を検索中...")
+        hashes = get_similar_hashes_from_malwarebazaar(term)
+
+        if hashes is None:
+            print(f"[-] '{term}'検索中にAPIエラーが発生しました。")
+            return None
+        if len(hashes) > 0:
+            print(f"[+] '{term}'で{len(hashes)}件のハッシュ値が見つかりました。")
+            return hashes
+        print(f"[-] '{term}' では結果が見つかりませんでした。より抽象的な名前で再検索します。")
+
+    print("[-] 全ての試行で類似検体が見つかりませんでした。")
+    return []
+    
+
+#[test]OpenAI_APIのweb_searchを叩く関数
+def web_search(malware_family_name: str) -> dict | None:
+    """
+    OpenAI APIを使用して、マルウェアファミリ名に基づく情報を検索する関数
+    """
+    if not malware_family_name:
+        print("マルウェアファミリ名が空です。")
+        return None
+    # 当該マルウェアファミリの一般的な挙動についての検索
+    messages= [
+        {
+            "role": "system",
+            "content": """あなたはマルウェア解析の専門家です。提供されたマルウェアファミリ名に基づいて，以下のJSON形式で情報を調査し報告してください。各項目は具体的に記述してください。また、流行度について調査する際は、直近1年以内のセキュリティベンダーの脅威レポート、セキュリティ専門家のブログ、公的機関の注意喚起などを重点的に参照してください。\n
+            形式:
+            {
+                "investigated_family_name": "提供されたマルウェアファミリ名",
+                "general_behavior": {
+                    "summary": "マルウェアの概要",
+                    "initial_compromise": "初期侵入の方法",
+                    "payload_behavior": "感染後のペイロードの挙動",
+                    "c2_communication": "C2サーバーとの通信方式や特徴",
+                    "other_features": "その他執筆すべき技術的な特徴"
+                },
+                "attack_cases": [
+                    {
+                        "case_title": "攻撃事例1のタイトル",
+                        "case_summary": "攻撃事例1の概要(時期、標的、影響，ソースリンクなど)"
+                    },
+                    {
+                        "case_title": "攻撃事例2のタイトル",
+                        "case_summary": "攻撃事例2の概要(時期、標的、影響，ソースリンクなど)"
+                    }
+                ],
+                "popularity_assessment": [
+                    {
+                        "activity_level": "観測データやレポートを基に、活動レベルを「非常に活発」「活発」「中程度」「低」のいずれかで評価してください。",
+                        "trend": "直近の活動状況から、脅威の動向を「増加傾向」「横ばい」「減少傾向」のいずれかで評価してください。",
+                        "recent_reports_summary": [
+                            {
+                                "source": "参照した情報の発行元や著者名 (例: Trend Micro, JPCERT/CC)",
+                                "title": "参照したレポートやブログ記事のタイトル",
+                                "published_data": "公開日, YYYY-MM-DD",
+                                "summary": "その情報源から判断できる流行度に関する内容を具体的に要約してください。"
+                            }
+                        ],
+                        "targeted_regions": ["攻撃が主に観測されている国や地域をリストアップしてください。"],
+                        "targeted_sectors": ["主な標的となっている業種をリストアップしてください。"],
+                        "overall_summary": "上記で得られた情報を総合的に分析し、なぜその活動レベルや傾向と判断したのか、理由を簡潔に記述してください。"
+                    }
+                ]
+                ###指示###
+                上記のJSON形式に厳密に従ってください。
+                JSONオブジェクトのみを出力し、前後のテキスト、補足、挨拶、マークダウンのjsonなどは一切含めないでください。
+            }"""
+        },
+        {
+            "role": "user",
+            "content": f"マルウェアファミリ名: {malware_family_name} の一般的な挙動と、関連するサイバー攻撃事案について調査してください。"
+        }
+    ]
+    try:
+        print(f"{malware_family_name}の情報を検索します...")
+        response = client.responses.create(
+        model="gpt-5-mini",
+        tools=[{"type": "web_search_preview"}],
+        input=messages
+        )
+        return response.to_dict() if hasattr(response, 'to_dict') else json.loads(response.json())
+
+    except Exception as e:
+        print(f"OpenAI APIの呼び出し中に予期せぬエラーが発生しました: {e}")
+        return None
+
+#[test] レスポンスからデータ抽出
+def extract_osint_json_from_response(api_response: dict | None) -> dict | None:
+    """
+    OpenAI APIのカスタムレスポンス構造から, 最終的なJSONコンテンツを安全に抽出する関数
+    """
+    if not api_response:
+        print("APIからのレスポンスが空です。")
+        return None, "No response from OpenAI API"
+    
+    raw_text = None
+    parsed_json = None
+
+    try:
+        output_list = api_response.get("output", [])
+        message_object = next((item for item in output_list if item.get("type") == "message"), None)
+        if message_object:
+            content_list = message_object.get("content",[])
+            if content_list:
+                raw_text = content_list[0].get("text")
+    except (IndexError, TypeError, AttributeError):
+        print("OSINTレスポンスの構造が予期しない形式です。")
+        return None, "Unexpected response structure"
+    
+    if not raw_text:
+        print("OSINTレスポンスからテキストコンテンツが見つかりませんでした。")
+        return None, "Failed to retrieve text from OpenAI response"
+    
+    try:
+        start_index = raw_text.find('{')
+        end_index = raw_text.rfind('}')
+        if start_index == -1 or end_index == -1 or start_index > end_index:
+            raise json.JSONDecodeError("JSONオブジェクトが見つかりません。", raw_text, 0)
+        json_str = raw_text[start_index:end_index+1]
+        parsed_json = json.loads(json_str)
+        if 'popularity_assessment' in parsed_json and isinstance(parsed_json['popularity_assessment'], list):
+            parsed_json['popularity_assessment'] = parsed_json['popularity_assessment'][0] if parsed_json['popularity_assessment'] else {}
+        print("OSINT情報のJSONパースに成功しました。")
+        return parsed_json, None
+    except json.JSONDecodeError as e:
+        print(f"OSINT情報のパースに失敗しました: {e}。RAWテキストを保存します。")
+        return None, raw_text
+
 #[test]起動直後に/に行くとtest.htmlを表示するエンドポイント
 @app.route('/')
 def index():
@@ -207,40 +432,63 @@ def index():
 #[test]APIを叩くエンドポイント
 @app.route('/api/test', methods=['GET'])
 def api_test():
-    headers = {
-        'x-apikey': VIRUSTOTAL_API_KEY
-    }
-    file_api_url = VIRUSTOTAL_FILE_API_URL
-    behave_api_url = VIRUSTOTAL_BEHAVE_API_URL
-    if not file_api_url or not behave_api_url:
-        return jsonify({'error': 'VIRUSTOTAL_API_URLが.envファイルに設定されていません。'}), 500
-
+    if not VIRUSTOTAL_API_KEY or not VIRUSTOTAL_FILE_API_URL:
+        return jsonify({'error': 'VIRUSTOTAL_API_KEYが.env.flaskファイルに設定されていません。'}), 500
+    
+    sha256_hash = "09a4adef9a7374616851e5e2a7d9539e1b9808e153538af94ad1d6d73a3a1232"
     try:
-        # /files/{SHA256ハッシュ値}エンドポイントを叩く処理
-        files_response = requests.get(file_api_url, headers=headers)
-        if files_response.status_code != 200:
-            return jsonify({
-                'error': f'/files APIリクエストエラー: {files_response.status_code}',
-                'message': files_response.text
-            }), files_response.status_code
-        
-        files_data = files_response.json()
-
-        # /files/{SHA256ハッシュ値}/behavioursエンドポイントを叩く処理
-        behaviours_response = requests.get(behave_api_url, headers=headers)
-        behaviours_data = behaviours_response.json() if behaviours_response.status_code == 200 else None
-
+        print(f"--- メイン検体の分析開始 ---")
+        main_files_data, main_behaviours_data = get_virustotal_data(sha256_hash)
+        print(main_files_data)
+        print(main_behaviours_data)
+        if not main_files_data or not main_behaviours_data:
+            return jsonify({'error': 'VirusTotalからのデータ取得に失敗しました。'}), 500
         # 2つのレスポンスから必要な情報を抽出する関数
-        report_data = extract_report_data(files_data, behaviours_data)
-
+        report_data = extract_report_data(main_files_data, main_behaviours_data)
+        if not report_data:
+            return jsonify({'error': 'VirusTotalのレスポンスから基本情報を抽出できませんでした。'}), 500
+        # マルウェアファミリ名抽出
+        malware_family_name = report_data.get('specimen_info', {}).get('suggested_malware_name')
+        # OpenAI APIを叩く関数
+        if malware_family_name:
+            # OpenAI APIの呼び出し
+            api_response = web_search(malware_family_name)
+            #レスポンスから目的のJSONを抽出
+            parsed_data, raw_text_on_fail = extract_osint_json_from_response(api_response)
+            if parsed_data:
+                report_data['osint_investigation'] = parsed_data
+                print("OSINT情報の取得とレポートへの追加が完了しました。")
+            else:
+                report_data['openai_response'] = raw_text_on_fail
+        else:
+            print("マルウェアファミリ名を見つけられませんでした。OSINT調査をスキップします。")
+        
+        # TODO: malware buzzer APIの処理の実装
+        if malware_family_name:
+            similar_hashes = search_similar_hashes_iteratively(malware_family_name)
+            if similar_hashes:
+                report_data['similar_samples_info'] = []
+                hashes_to_check = [h for h in similar_hashes if h != sha256_hash][:3]
+                for similar_hash in hashes_to_check:
+                    print(f"--- 類似検体の情報を取得 ---")
+                    files_data, behaviours_data = get_virustotal_data(similar_hash)
+                    sample_info = extract_report_data(files_data, behaviours_data)
+                    if sample_info:
+                        report_data['similar_samples_info'].append(sample_info)
+                    print("類似検体情報の追加が完了しました。")
         # レポートを保存
         timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
-        file_name = f'virustotal_report_{timestamp}.json'
+        file_name = f'MAOT_report_{sha256_hash}_{timestamp}.json'
         file_path = os.path.join(RESULTS_DIR, file_name)
 
         with open(file_path, 'w', encoding='utf-8') as f:
             json.dump(report_data, f, ensure_ascii=False, indent=4)
         return jsonify(report_data), 200
+    except requests.exceptions.HTTPError as e:
+        return jsonify({
+            'error': f'APIリクエストエラー: {e.response.status_code}',
+            'message': e.response.text
+        }), e.response.status_code
     except requests.exceptions.RequestException as e:
         return jsonify({'error': f'APIリクエストエラー: {e}'}), 500
     except Exception as e:
