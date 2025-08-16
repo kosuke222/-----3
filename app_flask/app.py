@@ -6,11 +6,13 @@ import requests
 from flask import Flask, render_template, request, redirect, url_for, jsonify, flash
 from openai import OpenAI
 import time
+import traceback
 
 # .envファイルから環境変数を読み込む
 load_dotenv(dotenv_path='.env.flask')
 
 app = Flask(__name__)
+app.config['SECRET_KEY'] = os.urandom(24)
 
 # .env.flaskからVIRUSTOTAL_API_KEYを読み込む
 VIRUSTOTAL_API_KEY = os.getenv('VIRUSTOTAL_API_KEY')
@@ -26,7 +28,7 @@ MALWAREBAZAAR_API_URL = "https://mb-api.abuse.ch/api/v1/"
 RESULTS_DIR = 'results'
 os.makedirs(RESULTS_DIR, exist_ok=True)
 
-# OpenAIのAPIを使用するための設定
+# OpenAIクライアントの初期化
 client = OpenAI(api_key=OPENAI_API_KEY)
 
 # 安全に辞書から値を取得するヘルパー関数
@@ -424,6 +426,62 @@ def extract_osint_json_from_response(api_response: dict | None) -> dict | None:
         print(f"OSINT情報のパースに失敗しました: {e}。RAWテキストを保存します。")
         return None, raw_text
 
+# --- レポート作成のための情報収集関数
+def run_full_analysis(sha256_hash: str) -> dict | None:
+    """
+    指定されたハッシュ値のフル分析を実行し、レポート辞書を返す。
+    """
+    try:
+        print(f"--- メイン検体 ({sha256_hash})の分析を開始 ---")
+        main_files_data, main_behaviours_data = get_virustotal_data(sha256_hash)
+        if not main_files_data or not main_behaviours_data:
+            flash(f"VirusTotalからのデータ取得に失敗しました。")
+            return None
+        report_data = extract_report_data(main_files_data, main_behaviours_data)
+        if not report_data:
+            flash(f"VirusTotalのレスポンスから基本情報を抽出できませんでした。")
+            return None
+        
+        malware_family_name = safe_get(report_data, ['specimen_info', 'suggested_malware_name'])
+
+        if malware_family_name:
+            api_response = web_search(malware_family_name)
+            parsed_data, raw_text_on_fail = extract_osint_json_from_response(api_response)
+            if parsed_data:
+                report_data['osint_investigation'] = parsed_data
+            else:
+                report_data['openai_response'] = raw_text_on_fail
+        else:
+            print("マルウェアファミリ名が見つからず、OSINT調査をスキップします。")
+        
+        if malware_family_name:
+            similar_hashes = search_similar_hashes_iteratively(malware_family_name)
+            if similar_hashes:
+                report_data['similar_samples_info'] = []
+                hashes_to_check = [h for h in similar_hashes if h != sha256_hash][:3]
+                for similar_hash in hashes_to_check:
+                    print(f"--- 類似検体 ({similar_hash})の情報を取得 ---")
+                    files_data, behaviours_data = get_virustotal_data(similar_hash)
+                    if files_data and behaviours_data:
+                        sample_info = extract_report_data(files_data, behaviours_data)
+                        if sample_info:
+                            report_data['similar_samples_info'].append(sample_info)
+                print(f"類似検体情報の追加が完了しました。")
+        
+        timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+        file_name = f"report_{sha256_hash[:10]}_{timestamp}.json"
+        file_path = os.path.join(RESULTS_DIR, file_name)
+        with open(file_path, 'w', encoding='utf-8') as f:
+            json.dump(report_data, f, ensure_ascii=False, indent=4)
+        print(f"--- 分析完了 --- レポートが{file_path}に保存されました。")
+        return report_data
+    except Exception as e:
+        traceback.print_exc()
+        flash(f"予期せぬサーバーエラーが発生しました。{e}")
+        return None
+
+                        
+# --- Flask定義 ---
 #[test]起動直後に/に行くとtest.htmlを表示するエンドポイント
 @app.route('/')
 def index():
@@ -436,63 +494,11 @@ def api_test():
         return jsonify({'error': 'VIRUSTOTAL_API_KEYが.env.flaskファイルに設定されていません。'}), 500
     
     sha256_hash = "09a4adef9a7374616851e5e2a7d9539e1b9808e153538af94ad1d6d73a3a1232"
-    try:
-        print(f"--- メイン検体の分析開始 ---")
-        main_files_data, main_behaviours_data = get_virustotal_data(sha256_hash)
-        print(main_files_data)
-        print(main_behaviours_data)
-        if not main_files_data or not main_behaviours_data:
-            return jsonify({'error': 'VirusTotalからのデータ取得に失敗しました。'}), 500
-        # 2つのレスポンスから必要な情報を抽出する関数
-        report_data = extract_report_data(main_files_data, main_behaviours_data)
-        if not report_data:
-            return jsonify({'error': 'VirusTotalのレスポンスから基本情報を抽出できませんでした。'}), 500
-        # マルウェアファミリ名抽出
-        malware_family_name = report_data.get('specimen_info', {}).get('suggested_malware_name')
-        # OpenAI APIを叩く関数
-        if malware_family_name:
-            # OpenAI APIの呼び出し
-            api_response = web_search(malware_family_name)
-            #レスポンスから目的のJSONを抽出
-            parsed_data, raw_text_on_fail = extract_osint_json_from_response(api_response)
-            if parsed_data:
-                report_data['osint_investigation'] = parsed_data
-                print("OSINT情報の取得とレポートへの追加が完了しました。")
-            else:
-                report_data['openai_response'] = raw_text_on_fail
-        else:
-            print("マルウェアファミリ名を見つけられませんでした。OSINT調査をスキップします。")
-        
-        # TODO: malware buzzer APIの処理の実装
-        if malware_family_name:
-            similar_hashes = search_similar_hashes_iteratively(malware_family_name)
-            if similar_hashes:
-                report_data['similar_samples_info'] = []
-                hashes_to_check = [h for h in similar_hashes if h != sha256_hash][:3]
-                for similar_hash in hashes_to_check:
-                    print(f"--- 類似検体の情報を取得 ---")
-                    files_data, behaviours_data = get_virustotal_data(similar_hash)
-                    sample_info = extract_report_data(files_data, behaviours_data)
-                    if sample_info:
-                        report_data['similar_samples_info'].append(sample_info)
-                    print("類似検体情報の追加が完了しました。")
-        # レポートを保存
-        timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
-        file_name = f'MAOT_report_{sha256_hash}_{timestamp}.json'
-        file_path = os.path.join(RESULTS_DIR, file_name)
-
-        with open(file_path, 'w', encoding='utf-8') as f:
-            json.dump(report_data, f, ensure_ascii=False, indent=4)
+    report_data = run_full_analysis(sha256_hash)
+    if report_data:
         return jsonify(report_data), 200
-    except requests.exceptions.HTTPError as e:
-        return jsonify({
-            'error': f'APIリクエストエラー: {e.response.status_code}',
-            'message': e.response.text
-        }), e.response.status_code
-    except requests.exceptions.RequestException as e:
-        return jsonify({'error': f'APIリクエストエラー: {e}'}), 500
-    except Exception as e:
-        return jsonify({'error': f'予期せぬサーバーエラー: {e}'}), 500
+    else:
+        return jsonify({'error': '分析に失敗しました。'}), 500
 
 # G-001 ログイン画面
 @app.route('/login', methods=['GET', 'POST'])
@@ -549,7 +555,15 @@ def api_key():
 @app.route('/create_report', methods=['GET', 'POST'])
 def create_report():
     if request.method == 'POST':
-        return redirect(url_for('report_list'))
+        sha256_hash = request.form.get('sha256_hash', '').strip()
+        if not sha256_hash:
+            flash('SHA256ハッシュ値を入力してください。', 'error')
+        # 分析
+        report = run_full_analysis(sha256_hash)
+        if report:
+            return render_template('report_result.html', report=report)
+        else:
+            return redirect(url_for('create_report'))
     return render_template('create_report.html')
 
 # G-010 レポート一覧画面
