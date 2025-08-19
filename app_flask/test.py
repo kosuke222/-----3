@@ -49,10 +49,18 @@ def generate_markdown_report(report_data: dict) -> str | None:
 | IPアドレス | (JSONの`communication_destination.important_ip_addresses`を列挙) |
 | URL | (JSONの`communication_destination.urls`を列挙) |
 | 通信パターン | (JSONの`osint_investigation.general_behavior.c2_communication`の要約を基に、どのような通信を行うか記述) |
-| 生死情報 | (今回は「調査未実施」と記載) |
 
 ## 4. 検体の挙動
 `mitre_attack_summary`、`specimen_behavior`（特に`file_operations`, `registry_key_operations`, `process_tree`）を総合的に分析し、以下の項目に分類して、自然言語で分かりやすく解説してください。単なる情報の羅列ではなく、各挙動が攻撃の中でどのような意味を持つのかを説明することが重要です。
+
+### プロセスツリー
+(各プロセスが何を表すのかを簡単に解説)
+
+### ファイル操作
+(主要なファイル操作について簡単に解説)
+
+### レジストリキー操作
+(主要なレジストリ操作について簡単に解説)
 
 ### 環境認識
 (システム情報、ユーザー情報、実行中プロセスなどを収集する挙動について解説)
@@ -97,7 +105,6 @@ def generate_markdown_report(report_data: dict) -> str | None:
 | SHA256ハッシュ値 | (JSONの`ioc.sha256_hash`から記載) |
 | IPアドレス | (JSONの`ioc.ip_addresses`を列挙) |
 | URL | (JSONの`ioc.urls`を列挙) |
-| 接続先の生死情報 | (今回は「調査未実施」と記載) |
 
 ---
 ### 指示 ###
