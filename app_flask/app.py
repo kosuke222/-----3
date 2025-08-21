@@ -7,7 +7,7 @@ from flask import Flask, render_template, request, redirect, url_for, jsonify, f
 from openai import OpenAI
 import time
 
-# .envファイルから環境変数を読み込む
+# .envファイルから環境変数を読み込む aaaa
 load_dotenv(dotenv_path='.env.flask')
 
 app = Flask(__name__)
