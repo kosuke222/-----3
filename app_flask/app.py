@@ -494,7 +494,7 @@ def api_test():
     except Exception as e:
         return jsonify({'error': f'予期せぬサーバーエラー: {e}'}), 500
 
-# G-001 ログイン画面
+#   G-001 ログイン画面
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
