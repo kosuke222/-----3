@@ -1,3 +1,4 @@
+
 {% extends "base.html" %}
 {% set show_header = False %}
 {% set show_footer = False %}
@@ -7,14 +8,40 @@
 {% endblock %}
 
 {% block content %}
-<h1>ログイン</h1>
-<form method="post" action="{{ url_for('login') }}">
-  <label>メールアドレス</label>
-  <input type="text" name="email" placeholder="email" required />
-  <label>パスワード</label>
-  <input type="password" name="password" placeholder="password" required />
-  <button type="submit">ログイン</button>
-</form>
+<div class="d-flex justify-content-center align-items-center min-vh-100">
+    <div class="card bg-custom-dark-2 border-0 shadow-lg p-4 rounded-4 mx-auto" >
+            <h2 class="text-center fw-bold mb-4"> ログイン</h2>
+
+        
+        <form method="POST" action="{{ url_for('login') }}">
+            <!-- メールアドレス -->
+            <div class="mb-3">
+                <input type="email" name="email" class="form-control form-control-lg rounded-pill bg-dark text-white border-0"
+                       placeholder="メールアドレス" required>
+            </div>
+
+            <!-- パスワード -->
+            <div class="mb-4">
+                <input type="password" name="password" class="form-control form-control-lg rounded-pill bg-dark text-white border-0"
+                       placeholder="パスワード" required>
+            </div>
+
+            <!-- ログインボタン -->
+            <div class="d-grid">
+                <button type="submit" class="btn btn-lg rounded-pill text-white fw-bold"
+                        style="background: linear-gradient(90deg, #005CFF 0%, #00C2FF 100%);">
+                    ログイン
+                </button>
+            </div>
+        </form>
+
+        <!-- サブリンク -->
+        <div class="text-center mt-4 small">
+            <a href="{{ url_for('register') }}" class="text-decoration-none text-secondary">アカウントをお持ちでない方はこちら</a><br>
+            <a href="{{ url_for('forgot_password') }}" class="text-decoration-none text-secondary">パスワードを忘れた方はこちら</a>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}

@@ -11,7 +11,7 @@ from openai import OpenAI
 import time
 from data_model import db, User
 
-# .envファイルから環境変数を読み込む
+# .envファイルから環境変数を読み込む aaaa
 load_dotenv(dotenv_path='.env.flask')
 load_dotenv(dotenv_path='.env.db')
 
@@ -305,7 +305,7 @@ def get_similar_hashes_from_malwarebazaar(family_name: str, limit: int = 3) -> l
         print(f"[!] リクエストエラーが発生しました: {e}")
         return None
 
-# 反復検索
+#   反復検索
 def search_similar_hashes_iteratively(original_family_name: str) -> list[str] | None:
     if not original_family_name:
         return None
@@ -520,7 +520,7 @@ def api_test():
     except Exception as e:
         return jsonify({'error': f'予期せぬサーバーエラー: {e}'}), 500
 
-# G-001 ログイン画面
+#   G-001 ログイン画面
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'GET':
