@@ -4,17 +4,18 @@ services:
   web:
     build: ./app_flask
     ports:
-      -  "5000:5000"
+      -  "5001:5001"
     volumes:
       - ./app_flask:/app
     env_file:
       - ./app_flask/.env.flask
+      - ./.env.db
     depends_on:
       - db
   db:
     image: postgres:14-alpine
     volumes:
-      - ./initdb/init.sql: /docker-entrypoint-initdb.d/init.sql
+      - ./initdb/init.sql:/docker-entrypoint-initdb.d/init.sql
       - postgres_data:/var/lib/postgresql/data
     env_file:
       - ./.env.db

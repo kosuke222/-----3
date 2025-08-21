@@ -4,13 +4,19 @@ import os
 from dotenv import load_dotenv
 import requests
 from flask import Flask, render_template, request, redirect, url_for, jsonify, flash
+from flask_login import LoginManager, login_user, logout_user, login_required, UserMixin, current_user
+from flask_sqlalchemy import SQLAlchemy
+from werkzeug.security import check_password_hash
 from openai import OpenAI
 import time
+from data_model import db, User
 
 # .envファイルから環境変数を読み込む
 load_dotenv(dotenv_path='.env.flask')
+load_dotenv(dotenv_path='.env.db')
 
 app = Flask(__name__)
+app.config["SECRET_KEY"] = os.getenv("SECRET_KEY")
 
 # .env.flaskからVIRUSTOTAL_API_KEYを読み込む
 VIRUSTOTAL_API_KEY = os.getenv('VIRUSTOTAL_API_KEY')
@@ -21,6 +27,26 @@ OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 # .env.flaskからMalwareBazaarAPIキーを読み込む
 MALWAREBAZAAR_API_KEY = os.getenv('MALWAREBAZAAR_API_KEY')
 MALWAREBAZAAR_API_URL = "https://mb-api.abuse.ch/api/v1/"
+
+# DBの読み込み
+app.config["SQLALCHEMY_DATABASE_URI"] = (
+    f"postgresql+psycopg2://{os.getenv('POSTGRES_USER','postgres')}:"
+    f"{os.getenv('POSTGRES_PASSWORD','')}@"
+    f"{os.getenv('POSTGRES_HOST','localhost')}:"
+    f"{os.getenv('POSTGRES_PORT','5432')}/"
+    f"{os.getenv('POSTGRES_DB','postgres')}"
+)
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+db.init_app(app)
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = "login"
+@login_manager.user_loader
+def load_user(user_id: str):
+    try:
+        return User.query.get(int(user_id))
+    except Exception:
+        return None
 
 # VIRUSTOTALからの出力を保存するファイルパス
 RESULTS_DIR = 'results'
@@ -497,9 +523,31 @@ def api_test():
 # G-001 ログイン画面
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    if request.method == 'POST':
-        return redirect(url_for('home'))
-    return render_template('login.html')
+    if request.method == 'GET':
+        return render_template('login.html')
+
+    email = request.form.get("email", "").strip()  
+    password = request.form.get("password", "")
+
+    if not email or not password:
+        flash("メールアドレスとパスワードを入力してください。", "danger")
+        return redirect(url_for("login"))
+
+    user = User.query.filter(
+        (User.email == email)
+    ).first()
+    if user:
+        flash("userいた")
+    else:
+        flash("userいない")
+
+    if user and check_password_hash(user.password, password):
+        login_user(user, remember=False)
+        flash("ログインしました。", "success")
+        return redirect(url_for("home"))
+    else:
+        flash("認証に失敗しました。", "danger")
+        return redirect(url_for("login"))
 
 # G-002 新規登録画面
 @app.route('/signup', methods=['GET', 'POST'])

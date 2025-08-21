@@ -23,7 +23,7 @@ CREATE TABLE user_roles(
 	FOREIGN KEY (role_id) REFERENCES roles(role_id) ON DELETE CASCADE
 );
 
---repotsテーブル
+--reportsテーブル
 CREATE TABLE reports(
 	report_id SERIAL PRIMARY KEY,
 	user_id INT NOT NULL,
@@ -42,7 +42,7 @@ COMMENT ON TABLE reports IS 'レポート情報を格納するテーブル';
 COMMENT ON COLUMN reports.report_markdown IS 'レポートのMarkdown形式の内容';
 
 --データ定義
-INSERT INTO roles(role) VALUES ('admin'), ('user');
+INSERT INTO roles(role_name) VALUES ('admin'), ('user');
 INSERT INTO users(username, email, password) VALUES
 ('sample1', 'sample1@example.com', 'your_hashed_password_here');
 
