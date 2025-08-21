@@ -30,11 +30,11 @@ MALWAREBAZAAR_API_URL = "https://mb-api.abuse.ch/api/v1/"
 
 # DBの読み込み
 app.config["SQLALCHEMY_DATABASE_URI"] = (
-    f"postgresql+psycopg2://{os.getenv('POSTGRES_USER','postgres')}:"
-    f"{os.getenv('POSTGRES_PASSWORD','')}@"
-    f"{os.getenv('POSTGRES_HOST','localhost')}:"
-    f"{os.getenv('POSTGRES_PORT','5432')}/"
-    f"{os.getenv('POSTGRES_DB','postgres')}"
+    f"postgresql+psycopg2://{os.getenv('POSTGRES_USER')}:"
+    f"{os.getenv('POSTGRES_PASSWORD')}@"
+    f"{os.getenv('POSTGRES_HOST')}:"
+    f"{os.getenv('POSTGRES_PORT')}/"
+    f"{os.getenv('POSTGRES_DB')}"
 )
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db.init_app(app)
@@ -533,13 +533,7 @@ def login():
         flash("メールアドレスとパスワードを入力してください。", "danger")
         return redirect(url_for("login"))
 
-    user = User.query.filter(
-        (User.email == email)
-    ).first()
-    if user:
-        flash("userいた")
-    else:
-        flash("userいない")
+    user = User.query.filter((User.email == email)).first()
 
     if user and check_password_hash(user.password, password):
         login_user(user, remember=False)
