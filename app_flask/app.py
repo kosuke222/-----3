@@ -279,7 +279,7 @@ def get_similar_hashes_from_malwarebazaar(family_name: str, limit: int = 3) -> l
         print(f"[!] リクエストエラーが発生しました: {e}")
         return None
 
-# 反復検索
+#   反復検索
 def search_similar_hashes_iteratively(original_family_name: str) -> list[str] | None:
     if not original_family_name:
         return None
