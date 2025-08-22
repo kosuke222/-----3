@@ -6,5 +6,5 @@ initdb/init.sql
 OPENAI_API_response_20250815_232943.json
 dict
 AgentTesla_samples.json
-.DS_Store
-__pycache__/
+/.DS_Store
+/__pycache__/*
