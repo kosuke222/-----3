@@ -54,7 +54,7 @@ RESULTS_DIR = 'results'
 os.makedirs(RESULTS_DIR, exist_ok=True)
 
 # OpenAIクライアントの初期化
-client = OpenAI(api_key=OPENAI_API_KEY)
+#client = OpenAI(api_key=OPENAI_API_KEY)
 
 # 安全に辞書から値を取得するヘルパー関数
 # キーが存在しない場合はデフォルト値を返す
@@ -677,6 +677,20 @@ def signup():
     if request.method == 'POST':
         return redirect(url_for('login'))
     return render_template('signup.html')
+
+    user = request.form.get("user").strip()
+    password = request.form.get("password").strip()
+    email = request.form.get("email").strip()
+
+    if not user or not password or not email:
+        flash("全てのフィールドを入力してください。", "danger")
+        return redirect(url_for("signup"))
+
+    new_user = User(email=email, password=generate_password_hash(password))
+    db.session.add(new_user)
+    db.session.commit()
+    flash("アカウントが作成されました。ログインしてください。", "success")
+    return redirect(url_for("login"))
 
 # G-003 パスワード再設定メール送信先入力画面
 @app.route('/forgot_password', methods=['GET', 'POST'])
