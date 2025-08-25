@@ -6,7 +6,46 @@
 {% endblock %}
 
 {% block content %}
+<div class="d-flex justify-content-center align-items-center min-vh-100">
+    <div class="card bg-custom-dark-2 border-0 shadow-lg p-4 rounded-4 mx-auto" >
+        <h2 class="text-center fw-bold mb-4"> 新規登録</h2>
+        
+        <form method="POST" action="{{ url_for('signup') }}">
+            <!-- ユーザー名 -->
+            <div class="mb-3">
+                <input type="user" name="user" class="form-control form-control-lg rounded-pill bg-dark text-white border-0"
+                       placeholder="ユーザー名" required>
+            </div>
+
+            <!-- パスワード -->
+            <div class="mb-5">
+                <input type="password" name="password" class="form-control form-control-lg rounded-pill bg-dark text-white border-0"
+                       placeholder="パスワード" required>
+            </div>
+
+            <!-- メールアドレス -->
+            <div class="mb-4">
+                <input type="email" name="email" class="form-control form-control-lg rounded-pill bg-dark text-white border-0"
+                       placeholder="メールアドレス" required>
+            </div>
+
+            <!-- 登録ボタン -->
+            <div class="d-grid">
+                <button type="submit" class="btn btn-lg rounded-pill text-white fw-bold"
+                        style="background: linear-gradient(90deg, #005CFF 0%, #00C2FF 100%);">
+                    登録
+                </button>
+            </div>
+        </form>
+
+        <!-- サブリンク -->
+        <div class="text-center mt-4 small">
+            <a href="{{ url_for('login') }}" class="text-decoration-none text-secondary">アカウントをお持ちの方はこちら</a>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
+
 {% endblock %}
