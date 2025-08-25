@@ -6,7 +6,7 @@ import requests
 from flask import Flask, render_template, request, redirect, url_for, jsonify, flash
 from flask_login import LoginManager, login_user, logout_user, login_required, UserMixin, current_user
 from flask_sqlalchemy import SQLAlchemy
-from werkzeug.security import check_password_hash
+from werkzeug.security import check_password_hash, generate_password_hash
 from openai import OpenAI
 import time
 import traceback
@@ -675,22 +675,28 @@ def login():
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
     if request.method == 'POST':
-        return redirect(url_for('login'))
+        user = request.form.get("user").strip()
+        password = request.form.get("password").strip()
+        email = request.form.get("email").strip()
+
+        if not user or not password or not email:
+            flash("全てのフィールドを入力してください。", "danger")
+            return redirect(url_for("signup"))
+
+        new_user = User(
+            username=user,
+            email=email,
+            password=generate_password_hash(password)
+        )
+
+        db.session.add(new_user)
+        db.session.commit()
+        flash("アカウントが作成されました。ログインしてください。", "success")
+        return redirect(url_for("login"))
+    
     return render_template('signup.html')
 
-    user = request.form.get("user").strip()
-    password = request.form.get("password").strip()
-    email = request.form.get("email").strip()
-
-    if not user or not password or not email:
-        flash("全てのフィールドを入力してください。", "danger")
-        return redirect(url_for("signup"))
-
-    new_user = User(email=email, password=generate_password_hash(password))
-    db.session.add(new_user)
-    db.session.commit()
-    flash("アカウントが作成されました。ログインしてください。", "success")
-    return redirect(url_for("login"))
+    
 
 # G-003 パスワード再設定メール送信先入力画面
 @app.route('/forgot_password', methods=['GET', 'POST'])
