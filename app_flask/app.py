@@ -675,12 +675,21 @@ def login():
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
     if request.method == 'POST':
-        user = request.form.get("user").strip()
-        password = request.form.get("password").strip()
-        email = request.form.get("email").strip()
+        user = request.form.get("user", "").strip()
+        password = request.form.get("password", "").strip()
+        email = request.form.get("email", "").strip()
 
         if not user or not password or not email:
             flash("全てのフィールドを入力してください。", "danger")
+            return redirect(url_for("signup"))
+        
+        # ユーザ名またはメールアドレスの重複チェック
+        existing_user = User.query.filter(
+            (User.username == user) | (User.email == email)
+        ).first()
+
+        if existing_user:
+            flash("このユーザー名またはメールアドレスは既に登録されています。", "warning")
             return redirect(url_for("signup"))
 
         new_user = User(
