@@ -6,7 +6,7 @@ import requests
 from flask import Flask, render_template, request, redirect, url_for, jsonify, flash
 from flask_login import LoginManager, login_user, logout_user, login_required, UserMixin, current_user
 from flask_sqlalchemy import SQLAlchemy
-from werkzeug.security import check_password_hash
+from werkzeug.security import check_password_hash, generate_password_hash
 from openai import OpenAI
 import time
 import traceback
@@ -54,7 +54,7 @@ RESULTS_DIR = 'results'
 os.makedirs(RESULTS_DIR, exist_ok=True)
 
 # OpenAIクライアントの初期化
-client = OpenAI(api_key=OPENAI_API_KEY)
+#client = OpenAI(api_key=OPENAI_API_KEY)
 
 # 安全に辞書から値を取得するヘルパー関数
 # キーが存在しない場合はデフォルト値を返す
@@ -675,8 +675,37 @@ def login():
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
     if request.method == 'POST':
-        return redirect(url_for('login'))
+        user = request.form.get("user", "").strip()
+        password = request.form.get("password", "").strip()
+        email = request.form.get("email", "").strip()
+
+        if not user or not password or not email:
+            flash("全てのフィールドを入力してください。", "danger")
+            return redirect(url_for("signup"))
+        
+        # ユーザ名またはメールアドレスの重複チェック
+        existing_user = User.query.filter(
+            (User.username == user) | (User.email == email)
+        ).first()
+
+        if existing_user:
+            flash("このユーザー名またはメールアドレスは既に登録されています。", "warning")
+            return redirect(url_for("signup"))
+
+        new_user = User(
+            username=user,
+            email=email,
+            password=generate_password_hash(password)
+        )
+
+        db.session.add(new_user)
+        db.session.commit()
+        flash("アカウントが作成されました。ログインしてください。", "success")
+        return redirect(url_for("login"))
+    
     return render_template('signup.html')
+
+    
 
 # G-003 パスワード再設定メール送信先入力画面
 @app.route('/forgot_password', methods=['GET', 'POST'])
