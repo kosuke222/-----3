@@ -12,9 +12,9 @@ import time
 import traceback
 from data_model import db, User
 
-# .envファイルから環境変数を読み込む aaaa
+# .envファイルから環境変数を読み込む
 load_dotenv(dotenv_path='.env.flask')
-load_dotenv(dotenv_path='.env.db')
+load_dotenv(dotenv_path='../.env.db')
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.getenv("SECRET_KEY")
