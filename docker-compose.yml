@@ -4,7 +4,7 @@ services:
   web:
     build: ./app_flask
     ports:
-      -  "5001:5001"
+      - "5001:5001"
     volumes:
       - ./app_flask:/app
     env_file:
