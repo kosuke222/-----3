@@ -1,10 +1,35 @@
 {% extends "base.html" %}
 
 {% block page_title %}
+レポート作成
+{% endblock %}
+
+{% block header_title %}
+マルウェア解析ツール
 {% endblock %}
 
 {% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <div class="bg-custom-dark-2 p-4 p-md-5 rounded-3 border border-custom">
+            <h2 class="text-center fw-bold mb-3">レポート作成</h2>
+            <p class="text-center text-secondary mb-4">
+                マルウェアのハッシュ値を入力して、解析レポートを作成します。
+            </p>
+
+            <form action="{{ url_for('create_report') }}" method="post">
+                <div class="mb-3">
+                    <label for="sha256_hash" class="form-label visually-hidden">ハッシュ値</label>
+                    <textarea class="form-control" id="sha256_hash" name="sha256_hash" rows="3" placeholder="ハッシュ値を入力してください (例: a1b2c3d4e5f6...)" required></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary w-100 fw-semibold">レポートを作成</button>
+            </form>
+            
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
+{{ super() }}
 {% endblock %}
