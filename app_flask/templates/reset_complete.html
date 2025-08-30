@@ -6,6 +6,25 @@
 {% endblock %}
 
 {% block content %}
+
+<div class="d-flex justify-content-center align-items-center">
+    <div class="card bg-custom-dark-2 border-0 shadow-lg p-4 rounded-4 mx-auto" >
+        <h4 class="text-center fw-bold col-auto fs-4" style="white-space: nowrap;"> パスワードの再設定が完了しました。</h4>
+        
+        <form method="POST" action="{{ url_for('reset_complete') }}">
+
+            <!-- 戻るボタン -->
+            <div class="d-grid fs-2">
+                <button type="submit" class="btn btn-lg rounded-pill text-white fw-bold"
+                        style="background: linear-gradient(90deg, #005CFF 0%, #00C2FF 100%);">
+                    戻る
+                </button>
+            </div>
+        </form>
+
+    </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
