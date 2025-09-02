@@ -767,7 +767,7 @@ def api_key():
         db.session.commit()
 
         flash("APIキーが保存されました。", "success")
-        return redirect(url_for('home'))
+        return redirect(url_for('api_key'))
     return render_template('api_key.html')
 
 # G-009 レポート作成画面
