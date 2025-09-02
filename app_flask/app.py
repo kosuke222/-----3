@@ -819,7 +819,19 @@ def create_report():
 # G-010 レポート一覧画面
 @app.route('/report_list')
 def report_list():
-    return render_template('report_list.html')
+    reports = Report.query.order_by(Report.created_at.desc()).all()
+    return render_template('report_list.html', reports=reports)
+
+# レポート単体表示
+@app.route('/report/<int:report_id>')
+@login_required
+def show_report(report_id):
+    report = Report.query.get_or_404(report_id)
+    html_content = markdown.markdown(report.report_markdown, extensions=["tables"])
+    html_content = html_content.replace('<table>', '<table class="table table-bordered table-dark table-striped">')
+    html_content = html_content.replace('<th>', '<th scope="col" class="bg-dark">')
+    return render_template('report_detail.html', report=report, report_html_content=html_content)
+
 
 @app.route('/logout')
 def logout():
