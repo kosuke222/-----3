@@ -741,6 +741,19 @@ def home():
 def api_key():
     if request.method == 'POST':
         # ここでVIRUSTOTAL_API_KEYを使用する処理などを実装できます
+        virustotal_api_key = request.form.get("virustotal_api_key", "").strip()
+        malwarebazaar_api_key = request.form.get("malwarebazaar_api_key", "").strip()
+
+        if not virustotal_api_key or not malwarebazaar_api_key:
+            flash("全てのフィールドを入力してください。", "danger")
+            return redirect(url_for("api_key"))
+
+        current_user.virustotal_api_key = virustotal_api_key
+        current_user.malwarebazaar_api_key = malwarebazaar_api_key
+
+        db.session.commit()
+        
+        flash("APIキーが保存されました。", "success")
         return redirect(url_for('home'))
     return render_template('api_key.html')
 
