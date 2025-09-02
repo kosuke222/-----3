@@ -11,8 +11,9 @@ from openai import OpenAI
 import time
 import traceback
 from data_model import db, User
+from cryptography.fernet import Fernet
 
-# .envファイルから環境変数を読み込む aaaa
+# .envファイルから環境変数を読み込む
 load_dotenv(dotenv_path='.env.flask')
 load_dotenv(dotenv_path='.env.db')
 
@@ -747,12 +748,24 @@ def api_key():
         if not virustotal_api_key or not malwarebazaar_api_key:
             flash("全てのフィールドを入力してください。", "danger")
             return redirect(url_for("api_key"))
-
-        current_user.virustotal_api_key = virustotal_api_key
-        current_user.malwarebazaar_api_key = malwarebazaar_api_key
-
-        db.session.commit()
         
+        #暗号化処理
+        load_dotenv(dotenv_path='.env.flask')
+        API_ENCRYPTION_KEY = os.getenv("API_ENCRYPTION_KEY")
+        if not API_ENCRYPTION_KEY:
+            API_ENCRYPTION_KEY = Fernet.generate_key().decode()
+            with open(".env.flask", "a") as f:
+                f.write(f"\nAPI_ENCRYPTION_KEY={API_ENCRYPTION_KEY}")
+
+        fernet = Fernet(API_ENCRYPTION_KEY.encode())
+
+        encrypted_virustotal = fernet.encrypt(virustotal_api_key.encode()).decode()
+        encrypted_malwarebazaar = fernet.encrypt(malwarebazaar_api_key.encode()).decode()
+
+        current_user.virustotal_api_key = encrypted_virustotal
+        current_user.malwarebazaar_api_key = encrypted_malwarebazaar
+        db.session.commit()
+
         flash("APIキーが保存されました。", "success")
         return redirect(url_for('home'))
     return render_template('api_key.html')

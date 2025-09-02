@@ -8,4 +8,5 @@ dict
 AgentTesla_samples.json
 final_report_20250819_163447.md
 /.DS_Store
-__pycache__/*
+__pycache__/
+*.pyc
