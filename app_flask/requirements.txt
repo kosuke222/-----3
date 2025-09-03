@@ -7,3 +7,4 @@ python-dotenv
 requests
 openai
 cryptography
+Markdown

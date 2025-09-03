@@ -10,8 +10,10 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from openai import OpenAI
 import time
 import traceback
-from data_model import db, User
 from cryptography.fernet import Fernet
+from data_model import db, User, Report
+from markupsafe import Markup
+import markdown
 
 # .envファイルから環境変数を読み込む
 load_dotenv(dotenv_path='.env.flask')
@@ -55,7 +57,7 @@ RESULTS_DIR = 'results'
 os.makedirs(RESULTS_DIR, exist_ok=True)
 
 # OpenAIクライアントの初期化
-#client = OpenAI(api_key=OPENAI_API_KEY)
+client = OpenAI(api_key=OPENAI_API_KEY)
 
 # 安全に辞書から値を取得するヘルパー関数
 # キーが存在しない場合はデフォルト値を返す
@@ -280,7 +282,7 @@ def extract_report_data(files_data, behaviours_data):
 
     return report
 
-#[test] Malware_Bazaar 関連関数
+#Malware_Bazaar 関連関数
 def get_similar_hashes_from_malwarebazaar(family_name: str, limit: int = 3) -> list[str] | None:
     if not MALWAREBAZAAR_API_KEY:
         print("MalwareBazaarのAPIキーが設定されていないため、類似検体検索をストップします。")
@@ -337,7 +339,7 @@ def search_similar_hashes_iteratively(original_family_name: str) -> list[str] | 
     return []
     
 
-#[test]OpenAI_APIのweb_searchを叩く関数
+#OpenAI_APIのweb_searchを叩く関数
 def web_search(malware_family_name: str) -> dict | None:
     """
     OpenAI APIを使用して、マルウェアファミリ名に基づく情報を検索する関数
@@ -410,7 +412,7 @@ def web_search(malware_family_name: str) -> dict | None:
         print(f"OpenAI APIの呼び出し中に予期せぬエラーが発生しました: {e}")
         return None
 
-#[test] レスポンスからデータ抽出
+#レスポンスからデータ抽出
 def extract_osint_json_from_response(api_response: dict | None) -> dict | None:
     """
     OpenAI APIのカスタムレスポンス構造から, 最終的なJSONコンテンツを安全に抽出する関数
@@ -457,7 +459,7 @@ def generate_markdown_report(report_data: dict) -> str | None:
     """
     収集したJSONデータを基に、LLMを使用してMarkdown形式の解析レポートを生成する。
     """
-    json_data_string = json.dump(report_data, indent=2, ensure_ascii=False)
+    json_data_string = json.dumps(report_data, indent=2, ensure_ascii=False)
     system_prompt = """あなたは優秀なマルウェア解析官であり、セキュリティレポートの専門家です。
 提供されたJSON形式の技術データを分析し、以下の厳格なフォーマットに従って、日本語のMarkdown形式で詳細な解析レポートを作成してください。
 
@@ -556,12 +558,33 @@ def generate_markdown_report(report_data: dict) -> str | None:
         print("--- OpenAI APIにMarkdownレポート生成をリクエストしています... ---")
         response = client.chat.completions.create(
             model="gpt-5-mini",
-            messages=messages,
-            temperature=0.2
+            messages=messages
         )
-        return response.choice[0].message.content
+        return response.choices[0].message.content
     except Exception as e:
         print(f"エラー: OpenAI APIでのレポート生成中にエラーが発生しました: {e}")
+        traceback.print_exc()
+        return None
+
+# 作成レポートのDB保存関数
+def save_report_to_db(user_id: int, sha256_hash: str, report_markdown: str, malware_family: str) -> bool:
+    """
+    生成されたレポートをデータベースに保存する関数
+    """
+    try:
+        new_report = Report(
+            user_id=user_id,
+            hash_sha256=sha256_hash,
+            report_markdown=report_markdown,
+            malware_family=malware_family
+        )
+        db.session.add(new_report)
+        db.session.commit()
+        print(f"レポートがデータベースに保存されました。Report ID: {new_report.report_id}")
+        return new_report.report_id
+    except Exception as e:
+        db.session.rollback()
+        print(f"エラー: レポートのデータベース保存中にエラーが発生しました: {e}")
         return None
 
 # --- レポート作成のための情報収集関数
@@ -616,11 +639,15 @@ def run_full_analysis(sha256_hash: str) -> dict | None:
         markdown_report = generate_markdown_report(report_data)
         if markdown_report:
             md_file_name = f"final_report_{sha256_hash[:10]}_{timestamp}.md"
-            md_file_path = os.path.json(RESULTS_DIR, md_file_name)
+            md_file_path = os.path.join(RESULTS_DIR, md_file_name)
             with open(md_file_path, 'w', encoding='utf-8') as f:
                 f.write(markdown_report)
             print(f"--- 分析完了 --- 最終レポートが {md_file_path} に保存されました。")
-            return markdown_report
+
+            return {
+                "markdown": markdown_report,
+                "family_name": malware_family_name if malware_family_name else "Unknown"
+            }
         else:
             flash('エラー: Markdownレポートの生成に失敗しました。')
             return None
@@ -644,8 +671,9 @@ def api_test():
     
     sha256_hash = "09a4adef9a7374616851e5e2a7d9539e1b9808e153538af94ad1d6d73a3a1232"
     report_data = run_full_analysis(sha256_hash)
-    if report_data:
-        return jsonify(report_data), 200
+    report_result = report_data.get('markdown') if report_data else None
+    if report_result:
+        return jsonify(report_result), 200
     else:
         return jsonify({'error': '分析に失敗しました。'}), 500
 
@@ -772,17 +800,46 @@ def api_key():
 
 # G-009 レポート作成画面
 @app.route('/create_report', methods=['GET', 'POST'])
+@login_required
 def create_report():
     if request.method == 'POST':
         sha256_hash = request.form.get('sha256_hash', '').strip()
         if not sha256_hash:
             flash('SHA256ハッシュ値を入力してください。', 'error')
         # 分析
-        report = run_full_analysis(sha256_hash)
-        if report:
-            return render_template('report_result.html', report=report)
-        else:
+        analysis_result = run_full_analysis(sha256_hash)
+        if not analysis_result:
             return redirect(url_for('create_report'))
+        # 分析結果を展開
+        markdown_text = analysis_result.get('markdown')
+        malware_family = analysis_result.get('family_name')
+
+        # レポート保存
+        report_id = save_report_to_db(
+            user_id=current_user.user_id,
+            sha256_hash=sha256_hash,
+            report_markdown=markdown_text,
+            malware_family=malware_family
+            )
+
+        if report_id:
+            # レポートオブジェクトを取得
+            report = Report.query.get(report_id)
+            if not report:
+                flash('レポートの取得に失敗しました。', 'error')
+                return redirect(url_for('create_report'))
+            # マークダウンに変換
+            html_content = markdown.markdown(report.report_markdown, extensions=["tables"])
+            html_content = html_content.replace('<table>', '<table class="table table-bordered table-dark table-striped">')
+            html_content = html_content.replace('<th>', '<th scope="col" class="bg-dark">')
+            return render_template(
+                'report_result.html', 
+                report=report,
+                report_html_content=html_content)
+        else:
+            flash('レポートの保存に失敗しました。', 'error')
+            return redirect(url_for('create_report'))
+
     return render_template('create_report.html')
 
 # G-010 レポート一覧画面
