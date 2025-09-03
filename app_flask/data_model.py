@@ -15,7 +15,8 @@ class User(db.Model, UserMixin):
     username = db.Column(db.String(255), unique=True, nullable=False)
     email = db.Column(db.String(255), unique=True, nullable=False)
     password = db.Column(db.Text, nullable=False)    # ハッシュ化
-    api_key = db.Column(db.Text)                     # 暗号化
+    virustotal_api_key = db.Column(db.Text)                     # 暗号化
+    malwarebazaar_api_key = db.Column(db.Text)                     # 暗号化
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=datetime.utcnow)
     reports = db.relationship("Report", backref="user", lazy=True)
     @property

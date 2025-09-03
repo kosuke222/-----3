@@ -10,11 +10,12 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from openai import OpenAI
 import time
 import traceback
+from cryptography.fernet import Fernet
 from data_model import db, User, Report
 from markupsafe import Markup
 import markdown
 
-# .envファイルから環境変数を読み込む aaaa
+# .envファイルから環境変数を読み込む
 load_dotenv(dotenv_path='.env.flask')
 load_dotenv(dotenv_path='.env.db')
 
@@ -769,7 +770,32 @@ def home():
 def api_key():
     if request.method == 'POST':
         # ここでVIRUSTOTAL_API_KEYを使用する処理などを実装できます
-        return redirect(url_for('home'))
+        virustotal_api_key = request.form.get("virustotal_api_key", "").strip()
+        malwarebazaar_api_key = request.form.get("malwarebazaar_api_key", "").strip()
+
+        if not virustotal_api_key or not malwarebazaar_api_key:
+            flash("全てのフィールドを入力してください。", "danger")
+            return redirect(url_for("api_key"))
+        
+        #暗号化処理
+        load_dotenv(dotenv_path='.env.flask')
+        API_ENCRYPTION_KEY = os.getenv("API_ENCRYPTION_KEY")
+        if not API_ENCRYPTION_KEY:
+            API_ENCRYPTION_KEY = Fernet.generate_key().decode()
+            with open(".env.flask", "a") as f:
+                f.write(f"\nAPI_ENCRYPTION_KEY={API_ENCRYPTION_KEY}")
+
+        fernet = Fernet(API_ENCRYPTION_KEY.encode())
+
+        encrypted_virustotal = fernet.encrypt(virustotal_api_key.encode()).decode()
+        encrypted_malwarebazaar = fernet.encrypt(malwarebazaar_api_key.encode()).decode()
+
+        current_user.virustotal_api_key = encrypted_virustotal
+        current_user.malwarebazaar_api_key = encrypted_malwarebazaar
+        db.session.commit()
+
+        flash("APIキーが保存されました。", "success")
+        return redirect(url_for('api_key'))
     return render_template('api_key.html')
 
 # G-009 レポート作成画面
