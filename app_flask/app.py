@@ -23,14 +23,21 @@ app = Flask(__name__)
 app.config["SECRET_KEY"] = os.getenv("SECRET_KEY")
 
 # .env.flaskからVIRUSTOTAL_API_KEYを読み込む
-VIRUSTOTAL_API_KEY = os.getenv('VIRUSTOTAL_API_KEY')
+#VIRUSTOTAL_API_KEY = os.getenv('VIRUSTOTAL_API_KEY')
 VIRUSTOTAL_FILE_API_URL="https://www.virustotal.com/api/v3/files/"
 #VIRUSTOTAL_BEHAVE_API_URL = os.getenv('VIRUSTOTAL_BEHAVE_API_URL')
 # .env.flaskからOpenAI APIキーを読み込む
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 # .env.flaskからMalwareBazaarAPIキーを読み込む
-MALWAREBAZAAR_API_KEY = os.getenv('MALWAREBAZAAR_API_KEY')
+#MALWAREBAZAAR_API_KEY = os.getenv('MALWAREBAZAAR_API_KEY')
 MALWAREBAZAAR_API_URL = "https://mb-api.abuse.ch/api/v1/"
+# .env.flaskからAPIキー暗号化キーを読み込む 
+API_ENCRYPTION_KEY = os.getenv('API_ENCRYPTION_KEY')
+fernet = Fernet(API_ENCRYPTION_KEY.encode())
+if not API_ENCRYPTION_KEY:
+    API_ENCRYPTION_KEY = Fernet.generate_key().decode()
+    with open(".env.flask", "a") as f:
+        f.write(f"\nAPI_ENCRYPTION_KEY={API_ENCRYPTION_KEY}")
 
 # DBの読み込み
 app.config["SQLALCHEMY_DATABASE_URI"] = (
@@ -79,8 +86,10 @@ def wait_until_utc_midnight():
 
 # Virustotalから基本情報を取得する
 def get_virustotal_data(sha256_hash: str) -> tuple[dict | None, dict | None]:
+    encrypted_virustotal_api_key = current_user.virustotal_api_key
+    virustotal_api_key = fernet.decrypt(encrypted_virustotal_api_key.encode()).decode()
     headers = {
-        'x-apikey': VIRUSTOTAL_API_KEY
+        'x-apikey': virustotal_api_key
     }
     files_url = f"{VIRUSTOTAL_FILE_API_URL}{sha256_hash}"
     behaviours_url = f"{files_url}/behaviours"
@@ -284,12 +293,14 @@ def extract_report_data(files_data, behaviours_data):
 
 #Malware_Bazaar 関連関数
 def get_similar_hashes_from_malwarebazaar(family_name: str, limit: int = 3) -> list[str] | None:
-    if not MALWAREBAZAAR_API_KEY:
+    encrypted_malwarebazaar_api_key = current_user.malwarebazaar_api_key
+    malwarebazaar_api_key = fernet.decrypt(encrypted_malwarebazaar_api_key.encode()).decode()
+    if not malwarebazaar_api_key:
         print("MalwareBazaarのAPIキーが設定されていないため、類似検体検索をストップします。")
         return None
     print(f"[*] マルウェアファミリ '{family_name}' に類似する検体を検索中...")
     try:
-        headers = {'Auth-Key': MALWAREBAZAAR_API_KEY}
+        headers = {'Auth-Key': malwarebazaar_api_key}
         data = {'query': 'get_siginfo', 'signature': family_name, 'limit': limit}
         response = requests.post(MALWAREBAZAAR_API_URL, data=data, headers=headers, timeout=15)
         response.raise_for_status()
@@ -666,6 +677,8 @@ def index():
 #[test]APIを叩くエンドポイント
 @app.route('/api/test', methods=['GET'])
 def api_test():
+    """load_dotenv(dotenv_path='.env.flask')
+    VIRUSTOTAL_API_KEY = os.getenv("VIRUSTOTAL_API_KEY")
     if not VIRUSTOTAL_API_KEY or not VIRUSTOTAL_FILE_API_URL:
         return jsonify({'error': 'VIRUSTOTAL_API_KEYが.env.flaskファイルに設定されていません。'}), 500
     
@@ -676,6 +689,8 @@ def api_test():
         return jsonify(report_result), 200
     else:
         return jsonify({'error': '分析に失敗しました。'}), 500
+    """
+    return "閉鎖中", 200
 
 #   G-001 ログイン画面
 @app.route('/login', methods=['GET', 'POST'])
@@ -778,12 +793,8 @@ def api_key():
             return redirect(url_for("api_key"))
         
         #暗号化処理
-        load_dotenv(dotenv_path='.env.flask')
-        API_ENCRYPTION_KEY = os.getenv("API_ENCRYPTION_KEY")
-        if not API_ENCRYPTION_KEY:
-            API_ENCRYPTION_KEY = Fernet.generate_key().decode()
-            with open(".env.flask", "a") as f:
-                f.write(f"\nAPI_ENCRYPTION_KEY={API_ENCRYPTION_KEY}")
+        #load_dotenv(dotenv_path='.env.flask')
+        #API_ENCRYPTION_KEY = os.getenv("API_ENCRYPTION_KEY")
 
         fernet = Fernet(API_ENCRYPTION_KEY.encode())
 
@@ -839,8 +850,12 @@ def create_report():
         else:
             flash('レポートの保存に失敗しました。', 'error')
             return redirect(url_for('create_report'))
-
-    return render_template('create_report.html')
+    elif request.method == 'GET':
+        if not current_user.virustotal_api_key or not current_user.malwarebazaar_api_key:
+            flash('レポート作成にはAPIキーの登録が必要です。APIキーを登録してください。', 'warning')
+            return redirect(url_for('api_key'))
+        else:
+            return render_template('create_report.html')
 
 # G-010 レポート一覧画面
 @app.route('/report_list')
