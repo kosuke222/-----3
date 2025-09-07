@@ -31,6 +31,13 @@ OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 # .env.flaskからMalwareBazaarAPIキーを読み込む
 #MALWAREBAZAAR_API_KEY = os.getenv('MALWAREBAZAAR_API_KEY')
 MALWAREBAZAAR_API_URL = "https://mb-api.abuse.ch/api/v1/"
+# .env.flaskからAPIキー暗号化キーを読み込む 
+API_ENCRYPTION_KEY = os.getenv('API_ENCRYPTION_KEY')
+fernet = Fernet(API_ENCRYPTION_KEY.encode())
+if not API_ENCRYPTION_KEY:
+    API_ENCRYPTION_KEY = Fernet.generate_key().decode()
+    with open(".env.flask", "a") as f:
+        f.write(f"\nAPI_ENCRYPTION_KEY={API_ENCRYPTION_KEY}")
 
 # DBの読み込み
 app.config["SQLALCHEMY_DATABASE_URI"] = (
@@ -79,7 +86,8 @@ def wait_until_utc_midnight():
 
 # Virustotalから基本情報を取得する
 def get_virustotal_data(sha256_hash: str) -> tuple[dict | None, dict | None]:
-    virustotal_api_key = Fernet.decrypt(current_user.virustotal_api_key.encode()).decode()
+    encrypted_virustotal_api_key = current_user.virustotal_api_key
+    virustotal_api_key = fernet.decrypt(encrypted_virustotal_api_key.encode()).decode()
     headers = {
         'x-apikey': virustotal_api_key
     }
@@ -285,7 +293,8 @@ def extract_report_data(files_data, behaviours_data):
 
 #Malware_Bazaar 関連関数
 def get_similar_hashes_from_malwarebazaar(family_name: str, limit: int = 3) -> list[str] | None:
-    malwarebazaar_api_key = Fernet.decrypt(current_user.malwarebazaar_api_key.encode()).decode()
+    encrypted_malwarebazaar_api_key = current_user.malwarebazaar_api_key
+    malwarebazaar_api_key = fernet.decrypt(encrypted_malwarebazaar_api_key.encode()).decode()
     if not malwarebazaar_api_key:
         print("MalwareBazaarのAPIキーが設定されていないため、類似検体検索をストップします。")
         return None
@@ -784,12 +793,8 @@ def api_key():
             return redirect(url_for("api_key"))
         
         #暗号化処理
-        load_dotenv(dotenv_path='.env.flask')
-        API_ENCRYPTION_KEY = os.getenv("API_ENCRYPTION_KEY")
-        if not API_ENCRYPTION_KEY:
-            API_ENCRYPTION_KEY = Fernet.generate_key().decode()
-            with open(".env.flask", "a") as f:
-                f.write(f"\nAPI_ENCRYPTION_KEY={API_ENCRYPTION_KEY}")
+        #load_dotenv(dotenv_path='.env.flask')
+        #API_ENCRYPTION_KEY = os.getenv("API_ENCRYPTION_KEY")
 
         fernet = Fernet(API_ENCRYPTION_KEY.encode())
 
