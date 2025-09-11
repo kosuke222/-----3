@@ -1,9 +1,26 @@
 {% extends "base.html" %}
 
-{% block page_title %}
+{% block page_title %}レポート作成
 {% endblock %}
 
 {% block content %}
+<div class = "d-flex justify-content-center align-items-center flex-grow-1">
+    <div class = "card bg-custom-dark-2 border-0 shadow-lg p-4 p-md-5 rounded-4"　style="max-width:600px; width: 100%;">
+        <h2 class = "text-center fw-bold mb-5">レポート作成</h2>
+        <p class = "text-center text-secondary mb-4">マルウェアのハッシュ値を入力して、解析レポートを作成します。</p>
+        <form method = "POST" action ="{{ url_for ('create_report') }}">
+            <div class = "mb-5">
+                <input type = "text" name = "sha256_hash" class = "form-control  form-control-lg rounded-3 bg-dark text-white border-custom" placeholder="ハッシュ値を入力してください（例:a1b2c3d4e5f6...)" required>
+            </div>
+            <div class = "d-grid mt-4">
+                <button type = "submit" class = "btn btn-lg rounded-pill text-white fw-bold"
+                        style = "background: linear-gradient(90deg, #005CFF 0%, #00C2FF 100%);">
+                    レポートを作成
+                </button>
+          </div>  
+      </form> 
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
