@@ -762,8 +762,9 @@ def password_reset_complete():
 
 # G-007 ホーム画面
 @app.route('/home')
+@login_required
 def home():
-    return render_template('home.html')
+    return render_template('home.html', username=current_user.username, page_title='ホーム')
 
 # G-008 APIキー入力画面
 @app.route('/api_key', methods=['GET', 'POST'])

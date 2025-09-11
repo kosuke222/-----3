@@ -4,6 +4,63 @@
 {% endblock %}
 
 {% block content %}
+<style>
+    
+    .card-custom-home {
+        background-color: var(--custom-dark-2);
+        border: 1px solid var(--custom-border);
+        border-radius: 0.5rem;
+        padding: 3rem;
+        max-width: 600px;
+        margin: auto;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .btn-action {
+        background: linear-gradient(90deg, #6a11cb 0%, #2575fc 100%);
+        border: none;
+        color: white;
+        padding: 1.25rem 2.5rem;
+        font-size: 1.25rem;
+        border-radius: 0.5rem;
+        margin-bottom: 1.5rem;
+        transition: all 0.3s ease;
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 500;
+    }
+
+    .btn-action:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.25);
+        filter: brightness(1.1);
+        color: white;
+    }
+
+    .btn-action i {
+        margin-right: 1rem;
+        font-size: 1.5rem;
+    }
+</style>
+
+<div class="container mt-5">
+    <div class="card-custom-home text-center">
+        <h1 class="mb-5 text-white">ホーム</h1>
+        <div class="d-grid gap-3">
+            <a href="{{ url_for('api_key') }}" class="btn btn-action">
+                <i class="fas fa-key"></i>APIキーを入力する
+            </a>
+            <a href="{{ url_for('create_report') }}" class="btn btn-action">
+                <i class="fas fa-file-alt"></i>レポートを作成する
+            </a>
+            <a href="{{ url_for('report_list') }}" class="btn btn-action">
+                <i class="fas fa-list"></i>レポート一覧を見る
+            </a>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
