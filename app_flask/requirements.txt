@@ -3,6 +3,7 @@ Flask-Login
 psycopg2-binary
 SQLAlchemy
 Flask-SQLAlchemy
+itsdangerous
 python-dotenv
 requests
 openai
