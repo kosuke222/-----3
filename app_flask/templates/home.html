@@ -4,63 +4,36 @@
 {% endblock %}
 
 {% block content %}
-<style>
-    
-    .card-custom-home {
-        background-color: var(--custom-dark-2);
-        border: 1px solid var(--custom-border);
-        border-radius: 0.5rem;
-        padding: 3rem;
-        max-width: 600px;
-        margin: auto;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    }
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <div class="card bg-custom-dark-2 border border-custom rounded-3">
+            
+            <div class="card-header text-center fw-bold">
+                ホーム
+            </div>
 
-    .btn-action {
-        background: linear-gradient(90deg, #6a11cb 0%, #2575fc 100%);
-        border: none;
-        color: white;
-        padding: 1.25rem 2.5rem;
-        font-size: 1.25rem;
-        border-radius: 0.5rem;
-        margin-bottom: 1.5rem;
-        transition: all 0.3s ease;
-        width: 100%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: 500;
-    }
+            <div class="card-body">
+                <div class="d-grid gap-3">
+                    <button type="submit" class="btn btn-lg rounded-pill text-white fw-bold"
+                            style="background: linear-gradient(90deg, #005CFF 0%, #00C2FF 100%);">
+                        <i class="bi bi-key"></i> APIキーを入力する
+                    </button>
 
-    .btn-action:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.25);
-        filter: brightness(1.1);
-        color: white;
-    }
+                    <button type="submit" class="btn btn-lg rounded-pill text-white fw-bold"
+                            style="background: linear-gradient(90deg, #005CFF 0%, #00C2FF 100%);">
+                        <i class="bi bi-file-earmark-plus"></i> レポートを作成する
+                    </button>
 
-    .btn-action i {
-        margin-right: 1rem;
-        font-size: 1.5rem;
-    }
-</style>
-
-<div class="container mt-5">
-    <div class="card-custom-home text-center">
-        <h1 class="mb-5 text-white">ホーム</h1>
-        <div class="d-grid gap-3">
-            <a href="{{ url_for('api_key') }}" class="btn btn-action">
-                <i class="fas fa-key"></i>APIキーを入力する
-            </a>
-            <a href="{{ url_for('create_report') }}" class="btn btn-action">
-                <i class="fas fa-file-alt"></i>レポートを作成する
-            </a>
-            <a href="{{ url_for('report_list') }}" class="btn btn-action">
-                <i class="fas fa-list"></i>レポート一覧を見る
-            </a>
+                    <button type="submit" class="btn btn-lg rounded-pill text-white fw-bold"
+                            style="background: linear-gradient(90deg, #005CFF 0%, #00C2FF 100%);">
+                        <i class="bi bi-list-ol"></i> レポート一覧を見る
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 </div>
+
 {% endblock %}
 
 {% block scripts %}
