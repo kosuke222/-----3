@@ -10,3 +10,4 @@ final_report_20250819_163447.md
 /.DS_Store
 __pycache__/
 *.pyc
+app_flask/__pycache__

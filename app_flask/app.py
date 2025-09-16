@@ -7,8 +7,12 @@ from flask import Flask, render_template, request, redirect, url_for, jsonify, f
 from flask_login import LoginManager, login_user, logout_user, login_required, UserMixin, current_user
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import check_password_hash, generate_password_hash
+from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
+from email.message import EmailMessage
+import smtplib
 from openai import OpenAI
 import time
+from datetime import datetime
 import traceback
 from cryptography.fernet import Fernet
 from data_model import db, User, Report
@@ -23,14 +27,21 @@ app = Flask(__name__)
 app.config["SECRET_KEY"] = os.getenv("SECRET_KEY")
 
 # .env.flaskからVIRUSTOTAL_API_KEYを読み込む
-VIRUSTOTAL_API_KEY = os.getenv('VIRUSTOTAL_API_KEY')
+#VIRUSTOTAL_API_KEY = os.getenv('VIRUSTOTAL_API_KEY')
 VIRUSTOTAL_FILE_API_URL="https://www.virustotal.com/api/v3/files/"
 #VIRUSTOTAL_BEHAVE_API_URL = os.getenv('VIRUSTOTAL_BEHAVE_API_URL')
 # .env.flaskからOpenAI APIキーを読み込む
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 # .env.flaskからMalwareBazaarAPIキーを読み込む
-MALWAREBAZAAR_API_KEY = os.getenv('MALWAREBAZAAR_API_KEY')
+#MALWAREBAZAAR_API_KEY = os.getenv('MALWAREBAZAAR_API_KEY')
 MALWAREBAZAAR_API_URL = "https://mb-api.abuse.ch/api/v1/"
+# .env.flaskからAPIキー暗号化キーを読み込む 
+API_ENCRYPTION_KEY = os.getenv('API_ENCRYPTION_KEY')
+fernet = Fernet(API_ENCRYPTION_KEY.encode())
+if not API_ENCRYPTION_KEY:
+    API_ENCRYPTION_KEY = Fernet.generate_key().decode()
+    with open(".env.flask", "a") as f:
+        f.write(f"\nAPI_ENCRYPTION_KEY={API_ENCRYPTION_KEY}")
 
 # DBの読み込み
 app.config["SQLALCHEMY_DATABASE_URI"] = (
@@ -45,12 +56,55 @@ db.init_app(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = "login"
+
+# ユーザデータ読み込み
 @login_manager.user_loader
 def load_user(user_id: str):
     try:
         return User.query.get(int(user_id))
     except Exception:
         return None
+
+def _ts() -> URLSafeTimedSerializer:
+    # salt は固定文字列（環境変数から）
+    return URLSafeTimedSerializer(
+        secret_key=app.config["SECRET_KEY"],
+        salt=os.getenv("SECURITY_PASSWORD_SALT", "default_salt"),
+    )
+
+def generate_reset_token(user_id: int) -> str:
+        return _ts().dumps({"uid": user_id})
+
+def verify_reset_token(token: str, max_age: int) -> int | None:
+    try:
+        data = _ts().loads(token, max_age=max_age)
+        return int(data.get("uid"))
+    except (SignatureExpired, BadSignature):
+        return None
+
+def send_email(subject: str, to: str, html_body: str, text_body: str | None = None):
+    msg = EmailMessage()
+    msg["Subject"] = subject
+    msg["From"] = os.getenv("MAIL_DEFAULT_SENDER", os.getenv("MAIL_USERNAME"))
+    msg["To"] = to
+    if text_body:
+        msg.set_content(text_body)
+        msg.add_alternative(html_body, subtype="html")
+    else:
+        msg.set_content(html_body, subtype="html")
+
+    server = os.getenv("MAIL_SERVER")
+    port = int(os.getenv("MAIL_PORT", "587"))
+    username = os.getenv("MAIL_USERNAME")
+    password = os.getenv("MAIL_PASSWORD")
+    use_tls = os.getenv("MAIL_USE_TLS", "1") == "1"
+
+    with smtplib.SMTP(server, port) as s:
+        if use_tls:
+            s.starttls()
+        if username:
+            s.login(username, password)
+        s.send_message(msg)
 
 # VIRUSTOTALからの出力を保存するファイルパス
 RESULTS_DIR = 'results'
@@ -79,8 +133,10 @@ def wait_until_utc_midnight():
 
 # Virustotalから基本情報を取得する
 def get_virustotal_data(sha256_hash: str) -> tuple[dict | None, dict | None]:
+    encrypted_virustotal_api_key = current_user.virustotal_api_key
+    virustotal_api_key = fernet.decrypt(encrypted_virustotal_api_key.encode()).decode()
     headers = {
-        'x-apikey': VIRUSTOTAL_API_KEY
+        'x-apikey': virustotal_api_key
     }
     files_url = f"{VIRUSTOTAL_FILE_API_URL}{sha256_hash}"
     behaviours_url = f"{files_url}/behaviours"
@@ -284,12 +340,14 @@ def extract_report_data(files_data, behaviours_data):
 
 #Malware_Bazaar 関連関数
 def get_similar_hashes_from_malwarebazaar(family_name: str, limit: int = 3) -> list[str] | None:
-    if not MALWAREBAZAAR_API_KEY:
+    encrypted_malwarebazaar_api_key = current_user.malwarebazaar_api_key
+    malwarebazaar_api_key = fernet.decrypt(encrypted_malwarebazaar_api_key.encode()).decode()
+    if not malwarebazaar_api_key:
         print("MalwareBazaarのAPIキーが設定されていないため、類似検体検索をストップします。")
         return None
     print(f"[*] マルウェアファミリ '{family_name}' に類似する検体を検索中...")
     try:
-        headers = {'Auth-Key': MALWAREBAZAAR_API_KEY}
+        headers = {'Auth-Key': malwarebazaar_api_key}
         data = {'query': 'get_siginfo', 'signature': family_name, 'limit': limit}
         response = requests.post(MALWAREBAZAAR_API_URL, data=data, headers=headers, timeout=15)
         response.raise_for_status()
@@ -666,6 +724,8 @@ def index():
 #[test]APIを叩くエンドポイント
 @app.route('/api/test', methods=['GET'])
 def api_test():
+    """load_dotenv(dotenv_path='.env.flask')
+    VIRUSTOTAL_API_KEY = os.getenv("VIRUSTOTAL_API_KEY")
     if not VIRUSTOTAL_API_KEY or not VIRUSTOTAL_FILE_API_URL:
         return jsonify({'error': 'VIRUSTOTAL_API_KEYが.env.flaskファイルに設定されていません。'}), 500
     
@@ -676,6 +736,8 @@ def api_test():
         return jsonify(report_result), 200
     else:
         return jsonify({'error': '分析に失敗しました。'}), 500
+    """
+    return "閉鎖中", 200
 
 #   G-001 ログイン画面
 @app.route('/login', methods=['GET', 'POST'])
@@ -739,26 +801,73 @@ def signup():
 # G-003 パスワード再設定メール送信先入力画面
 @app.route('/forgot_password', methods=['GET', 'POST'])
 def forgot_password():
-    if request.method == 'POST':
-        return redirect(url_for('password_reset_sent'))
-    return render_template('forgot_password.html')
+    if request.method == 'GET':
+        return render_template("forgot_password.html")
+
+    email = request.form.get("email", "").strip().lower()
+    if not email:
+        flash("メールアドレスを入力してください。", "danger")
+        return redirect(url_for("forgot_password"))
+
+    user = User.query.filter_by(email=email).first()
+
+    #flash("パスワードリセット手順を送信しました（届かない場合はメールアドレスをご確認ください）。", "info")
+
+    if not user:
+        return redirect(url_for("password_reset_sent"))
+
+    token = generate_reset_token(user.user_id)
+    app_base = os.getenv("APP_BASE_URL", request.url_root.rstrip("/"))
+    reset_link = f"{app_base}{url_for('reset_password', token=token)}"
+
+    html = f"""
+    <p>パスワード再設定のリンクです（有効期限あり）：</p>
+    <p><a href="{reset_link}">{reset_link}</a></p>
+    <p>このメールに心当たりがない場合は破棄してください。</p>
+    """
+    send_email("パスワード再設定のご案内", to=email, html_body=html)
+    return redirect(url_for("password_reset_sent"))
 
 # G-004 メール添付完了画面
-@app.route('/password_reset_sent')
+@app.route('/password_reset_sent', methods=['GET','POST'])
 def password_reset_sent():
-    return render_template('password_reset_sent.html')
+    if request.method == "GET":
+        return render_template('password_reset_sent.html')
+    return redirect(url_for("login"))
 
 # G-005 パスワード再設定画面
 @app.route('/reset_password/<token>', methods=['GET', 'POST'])
 def reset_password(token):
-    if request.method == 'POST':
-        return redirect(url_for('password_reset_complete'))
-    return render_template('reset_password.html', token=token)
+    if request.method == "GET":
+        return render_template("reset_password.html", token=token)
+    max_age = int(os.getenv("RESET_TOKEN_MAX_AGE", "3600"))  # 秒
+    user_id = verify_reset_token(token, max_age=max_age)
+    if not user_id:
+        flash("トークンが無効または期限切れです。再度メールを請求してください。", "danger")
+        return redirect(url_for("forgot_password"))
+
+    pw1 = request.form.get("password", "")
+    pw2 = request.form.get("password_confirm", "")
+    if not pw1 or pw1 != pw2:
+        flash("パスワードが未入力、または一致しません。", "danger")
+        return redirect(url_for("reset_password", token=token))
+
+    user = User.query.get(user_id)
+    if not user:
+        flash("ユーザーが見つかりません。", "danger")
+        return redirect(url_for("forgot_password"))
+
+    user.password = generate_password_hash(pw1, method="pbkdf2:sha256")
+    db.session.commit()
+
+    return redirect(url_for("reset_complete"))
 
 # G-006 パスワード再設定完了画面
-@app.route('/password_reset_complete')
-def password_reset_complete():
-    return render_template('password_reset_complete.html')
+@app.route('/reset_complete', methods=['GET','POST'])
+def reset_complete():
+    if request.method == "GET":
+        return render_template('reset_complete.html')
+    return redirect(url_for("login"))
 
 # G-007 ホーム画面
 @app.route('/home')
@@ -779,12 +888,8 @@ def api_key():
             return redirect(url_for("api_key"))
         
         #暗号化処理
-        load_dotenv(dotenv_path='.env.flask')
-        API_ENCRYPTION_KEY = os.getenv("API_ENCRYPTION_KEY")
-        if not API_ENCRYPTION_KEY:
-            API_ENCRYPTION_KEY = Fernet.generate_key().decode()
-            with open(".env.flask", "a") as f:
-                f.write(f"\nAPI_ENCRYPTION_KEY={API_ENCRYPTION_KEY}")
+        #load_dotenv(dotenv_path='.env.flask')
+        #API_ENCRYPTION_KEY = os.getenv("API_ENCRYPTION_KEY")
 
         fernet = Fernet(API_ENCRYPTION_KEY.encode())
 
@@ -840,8 +945,12 @@ def create_report():
         else:
             flash('レポートの保存に失敗しました。', 'error')
             return redirect(url_for('create_report'))
-
-    return render_template('create_report.html')
+    elif request.method == 'GET':
+        if not current_user.virustotal_api_key or not current_user.malwarebazaar_api_key:
+            flash('レポート作成にはAPIキーの登録が必要です。APIキーを登録してください。', 'warning')
+            return redirect(url_for('api_key'))
+        else:
+            return render_template('create_report.html')
 
 # G-010 レポート一覧画面
 @app.route('/report_list')
