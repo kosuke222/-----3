@@ -955,7 +955,24 @@ def create_report():
 # G-010 レポート一覧画面
 @app.route('/report_list')
 def report_list():
-    reports = Report.query.order_by(Report.created_at.desc()).all()
+    # URLのクエリパラメータから検索クエリを取得
+    query = request.args.get('query')
+
+    base_query = Report.query.order_by(Report.created_at.desc())
+    
+    # 検索クエリが存在する場合、フィルタリングを適用
+    if query:
+        # 検索条件をフィルタリング
+        # 例：マルウェア名またはハッシュ値に検索クエリが含まれるかを検索
+        search_pattern = f"%{query}%"
+        reports = base_query.filter(
+            (Report.malware_family.ilike(search_pattern)) | 
+            (Report.hash_sha256.ilike(search_pattern))
+        ).all()
+    else:
+        # 検索クエリがない場合、すべてのレポートを取得
+        reports = base_query.all()
+        
     return render_template('report_list.html', reports=reports)
 
 # レポート単体表示
