@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 
+{% set show_back_button = True %}
+
 {% block page_title %}
 レポート一覧
 {% endblock %}
@@ -17,8 +19,8 @@
         <div class="row">
             {% for report in reports %}
                 <div class="col-md-6 col-lg-4 d-flex">
-                    <div class="report-card card bg-custom-dark-2 border-custom rounded-3 flex-fill mb-4" onclick='location.href="{{ url_for(show_report, report_id=report.report_id) }}"'>
-                        <div class="card-body">
+                    <div class="report-card card bg-custom-dark-2 border-custom rounded-3 flex-fill mb-4" onclick="location.href='{{ url_for('show_report', report_id=report.report_id) }}'" style="cursor: pointer;">
+                    <div class="card-body">
                             <h5 class="card-title text-white">{{ report.malware_family }}</h5>
                             <p class="card-text text-secondary mb-1">
                                 <strong>作成日時:</strong> {{ report.created_at.strftime('%Y-%m-%d %H:%M') }}
@@ -47,4 +49,5 @@
 {% endblock %}
 
 {% block scripts %}
+{{ super() }}
 {% endblock %}
