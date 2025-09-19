@@ -985,6 +985,10 @@ def show_report(report_id):
     html_content = html_content.replace('<th>', '<th scope="col" class="bg-dark">')
     return render_template('report_detail.html', report=report, report_html_content=html_content)
 
+@app.route('/account')
+@login_required
+def account():
+    return render_template('account.html', user=current_user)
 
 @app.route('/logout')
 def logout():
