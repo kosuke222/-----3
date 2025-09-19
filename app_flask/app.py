@@ -687,7 +687,7 @@ def run_full_analysis(sha256_hash: str) -> dict | None:
                             report_data['similar_samples_info'].append(sample_info)
                 print(f"類似検体情報の追加が完了しました。")
         
-        timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         file_name = f"report_{sha256_hash[:10]}_{timestamp}.json"
         file_path = os.path.join(RESULTS_DIR, file_name)
         with open(file_path, 'w', encoding='utf-8') as f:
