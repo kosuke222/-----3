@@ -879,7 +879,6 @@ def home():
 @app.route('/api_key', methods=['GET', 'POST'])
 def api_key():
     if request.method == 'POST':
-        # ここでVIRUSTOTAL_API_KEYを使用する処理などを実装できます
         virustotal_api_key = request.form.get("virustotal_api_key", "").strip()
         malwarebazaar_api_key = request.form.get("malwarebazaar_api_key", "").strip()
 
