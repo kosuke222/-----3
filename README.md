@@ -64,11 +64,15 @@ VirusTotal APIキーと、Malware Bazaar APIキーを取得しフォームに入
 <img width="2154" height="1179" alt="image" src="https://github.com/user-attachments/assets/2fb37723-0784-4e09-b3d5-c124bda0957c" />
 
 8. レポート生成
-「レポートを作成する」をクリックし、調査したい検体のsha256ハッシュ値を入力する。
+「レポートを作成する」をクリックし、調査したい検体のsha256ハッシュ値を入力する。  
 <img width="2159" height="1181" alt="image" src="https://github.com/user-attachments/assets/7739b927-4d25-416b-b329-07f043900556" />
-すると、レポートが生成される(七分ほどかかる)
+すると、レポートが生成される(七分ほどかかる)  
 <img width="2159" height="1176" alt="image" src="https://github.com/user-attachments/assets/990509a9-1d4f-4b70-8d1b-5f3e2bb08c5b" />
 
+9. レポート一覧から作成したレポートの閲覧が可能
+<img width="2159" height="1179" alt="image" src="https://github.com/user-attachments/assets/da8f3b79-8867-4d90-a708-6b2b7467559a" />
+他ユーザが生成したレポートも閲覧が可能、キーワードを用いた検索もできる
+<img width="2159" height="1176" alt="image" src="https://github.com/user-attachments/assets/aa54a4e1-26d0-45de-8625-969ada3b01d1" />
 
 
 
