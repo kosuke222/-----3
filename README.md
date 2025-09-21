@@ -46,5 +46,18 @@ APP_BASE_URL=http://localhost:5001
 ```
 docker-compose up --build
 ```
-5. localhost:5001にアクセスする
+5. localhost:5001/loginにアクセスする  
+<img width="2159" height="1183" alt="image" src="https://github.com/user-attachments/assets/25cfb137-ddad-4725-a616-7a3786686cbc" />
+
+6. アカウントを作成する
+アカウントをお持ちではない方をクリックし，入力フォームに情報を入力する  
+<img width="2159" height="1184" alt="image" src="https://github.com/user-attachments/assets/14403c46-0e65-4ad7-9ac9-187309153b15" />
+
+ログイン画面に戻るので，必要情報を入力しログインをクリック
+<img width="2159" height="1183" alt="image" src="https://github.com/user-attachments/assets/66e6fcb1-4a2a-46e8-882b-ffae0109b7a4" />
+
+ホーム画面に遷移する  
+<img width="2158" height="1180" alt="image" src="https://github.com/user-attachments/assets/3b030c07-a601-46cb-a3dd-4482d0640fdb" />
+
+
 
