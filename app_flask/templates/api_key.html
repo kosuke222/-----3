@@ -1,6 +1,9 @@
 {% extends "base.html" %}
 
+{% set show_back_button = True %}
+
 {% block page_title %}
+APIキー設定
 {% endblock %}
 
 {% block content %}
@@ -35,4 +38,5 @@
 {% endblock %}
 
 {% block scripts %}
+{{ super() }}
 {% endblock %}

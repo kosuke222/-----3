@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 
+{% set show_back_button = True %}
+
 {% block page_title %}
 レポート一覧
 {% endblock %}
@@ -7,19 +9,24 @@
 {% block content %}
 <div class="container">
     <h1 class="text-center mb-4 text-white">レポート一覧</h1>
+    <div class="mb-4">
+        <form action="{{ url_for('report_list') }}" method="GET" class="d-flex flex-nowrap">
+            <input type="search" name="query" class="form-control" placeholder="レポートを検索..." aria-label="Search" value="{{ request.args.get('query', '') }}">
+            <button class="btn btn-outline-secondary ms-2" type="submit">検索</button>
+        </form>
+    </div>
     {% if reports %}
         <div class="row">
             {% for report in reports %}
-                <!-- クリック可能なカードとして各レポートを表示 -->
                 <div class="col-md-6 col-lg-4 d-flex">
-                    <div class="report-card card bg-custom-dark-2 border-custom rounded-3 flex-fill mb-4" onclick="location.href='{{ url_for('show_report', report_id=report.report_id) }}'">
-                        <div class="card-body">
+                    <div class="report-card card bg-custom-dark-2 border-custom rounded-3 flex-fill mb-4" onclick="location.href='{{ url_for('show_report', report_id=report.report_id) }}'" style="cursor: pointer;">
+                    <div class="card-body">
                             <h5 class="card-title text-white">{{ report.malware_family }}</h5>
                             <p class="card-text text-secondary mb-1">
-                                <strong>SHA256ハッシュ:</strong> <span class="badge bg-custom-border text-white">{{ report.hash_sha256[:10] }}...</span>
+                                <strong>作成日時:</strong> {{ report.created_at.strftime('%Y-%m-%d %H:%M') }}
                             </p>
                             <p class="card-text text-secondary">
-                                <strong>作成日時:</strong> {{ report.created_at.strftime('%Y-%m-%d %H:%M:%S') }}
+                                <strong>ハッシュ値:</strong> <span class="badge bg-custom-border text-white">{{ report.hash_sha256[:10] }}...</span>
                             </p>
                         </div>
                     </div>
@@ -28,7 +35,11 @@
         </div>
     {% else %}
         <div class="alert alert-warning text-center" role="alert">
-            まだ作成されたレポートはありません。
+            {% if request.args.get('query') %}
+                "{{ request.args.get('query') }}" に一致するレポートは見つかりませんでした。
+            {% else %}
+                まだ作成されたレポートはありません。
+            {% endif %}
         </div>
     {% endif %}
     <div class="text-center mt-4">
@@ -38,4 +49,5 @@
 {% endblock %}
 
 {% block scripts %}
+{{ super() }}
 {% endblock %}

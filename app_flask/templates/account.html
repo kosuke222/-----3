@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% set show_back_button = True %}
+
+{% block page_title %}アカウント情報{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <div class="card bg-custom-dark-2 border border-custom rounded-3">
+            <div class="card-header text-center fw-bold">
+                あなたのアカウント情報
+            </div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item bg-transparent border-custom text-white py-3">
+                        <strong class="text-secondary">ユーザーID:</strong>
+                        <span class="float-end">{{ user.user_id }}</span>
+                    </li>
+                    <li class="list-group-item bg-transparent border-custom text-white py-3">
+                        <strong class="text-secondary">ユーザー名:</strong>
+                        <span class="float-end">{{ user.username }}</span>
+                    </li>
+                    <li class="list-group-item bg-transparent text-white py-3">
+                        <strong class="text-secondary">メールアドレス:</strong>
+                        <span class="float-end">{{ user.email }}</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+{{ super() }}
+{% endblock %}

@@ -4,7 +4,37 @@
 {% endblock %}
 
 {% block content %}
-{% endblock %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <div class="card bg-custom-dark-2 border border-custom rounded-3">
+            
+            <div class="card-header text-center fw-bold">
+                ホーム
+            </div>
 
+            <div class="card-body">
+                <div class="d-grid gap-3">
+                    <button type="submit" class="btn btn-lg rounded-pill text-white fw-bold"
+                            style="background: linear-gradient(90deg, #005CFF 0%, #00C2FF 100%);">
+                        <i class="bi bi-key"></i> APIキーを入力する
+                    </button>
+
+                    <button type="submit" class="btn btn-lg rounded-pill text-white fw-bold"
+                            style="background: linear-gradient(90deg, #005CFF 0%, #00C2FF 100%);">
+                        <i class="bi bi-file-earmark-plus"></i> レポートを作成する
+                    </button>
+
+                    <button type="submit" class="btn btn-lg rounded-pill text-white fw-bold"
+                            style="background: linear-gradient(90deg, #005CFF 0%, #00C2FF 100%);">
+                        <i class="bi bi-list-ol"></i> レポート一覧を見る
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
 {% block scripts %}
+{{ super() }}
 {% endblock %}
