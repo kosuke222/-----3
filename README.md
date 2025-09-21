@@ -59,5 +59,17 @@ docker-compose up --build
 ホーム画面に遷移する  
 <img width="2158" height="1180" alt="image" src="https://github.com/user-attachments/assets/3b030c07-a601-46cb-a3dd-4482d0640fdb" />
 
+7. APIキーの設定
+VirusTotal APIキーと、Malware Bazaar APIキーを取得しフォームに入力
+<img width="2154" height="1179" alt="image" src="https://github.com/user-attachments/assets/2fb37723-0784-4e09-b3d5-c124bda0957c" />
+
+8. レポート生成
+「レポートを作成する」をクリックし、調査したい検体のsha256ハッシュ値を入力する。
+<img width="2159" height="1181" alt="image" src="https://github.com/user-attachments/assets/7739b927-4d25-416b-b329-07f043900556" />
+すると、レポートが生成される(七分ほどかかる)
+<img width="2159" height="1176" alt="image" src="https://github.com/user-attachments/assets/990509a9-1d4f-4b70-8d1b-5f3e2bb08c5b" />
+
+
+
 
 
