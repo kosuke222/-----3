@@ -14,20 +14,26 @@
 
             <div class="card-body">
                 <div class="d-grid gap-3">
-                    <button type="submit" class="btn btn-lg rounded-pill text-white fw-bold"
-                            style="background: linear-gradient(90deg, #005CFF 0%, #00C2FF 100%);">
-                        <i class="bi bi-key"></i> APIキーを入力する
-                    </button>
+                    <a href="/api_key" class="d-grid text-decoration-none">
+                        <button type="button" class="btn btn-lg rounded-pill text-white fw-bold"
+                                style="background: linear-gradient(90deg, #005CFF 0%, #00C2FF 100%);">
+                            <i class="bi bi-key"></i> APIキーを入力する
+                        </button>
+                    </a>
 
-                    <button type="submit" class="btn btn-lg rounded-pill text-white fw-bold"
-                            style="background: linear-gradient(90deg, #005CFF 0%, #00C2FF 100%);">
-                        <i class="bi bi-file-earmark-plus"></i> レポートを作成する
-                    </button>
+                    <a href="/create_report" class="d-grid text-decoration-none">
+                        <button type="button" class="btn btn-lg rounded-pill text-white fw-bold"
+                                style="background: linear-gradient(90deg, #005CFF 0%, #00C2FF 100%);">
+                            <i class="bi bi-file-earmark-plus"></i> レポートを作成する
+                        </button>
+                    </a>
 
-                    <button type="submit" class="btn btn-lg rounded-pill text-white fw-bold"
-                            style="background: linear-gradient(90deg, #005CFF 0%, #00C2FF 100%);">
-                        <i class="bi bi-list-ol"></i> レポート一覧を見る
-                    </button>
+                    <a href="/report_list" class="d-grid text-decoration-none">
+                        <button type="button" class="btn btn-lg rounded-pill text-white fw-bold"
+                                style="background: linear-gradient(90deg, #005CFF 0%, #00C2FF 100%);">
+                            <i class="bi bi-list-ol"></i> レポート一覧を見る
+                        </button>
+                    </a>
                 </div>
             </div>
         </div>
@@ -35,6 +41,6 @@
 </div>
 
 {% endblock %}
+
 {% block scripts %}
-{{ super() }}
 {% endblock %}
