@@ -3,19 +3,18 @@
 {% set show_back_button = True %}
 
 {% block page_title %}
-レポート生成結果
+レポート詳細
 {% endblock %}
 
 {% block content %}
 <div class="row">
     <div class="col-12">
-        <h1 class="mb-4 text-white">レポート生成完了</h1>
+        <h1 class="text-center mb-4 text-white">レポート詳細</h1>
         <div class="bg-custom-dark-2 border border-custom rounded-3 p-4 mb-4">
-            <div class="alert alert-success">
-                レポートの生成が完了しました！以下の内容を確認してください。
-            </div>
             <div class="report-content">
-                {{ report_html_content|safe }}
+                <div class="table-responsive">
+                    {{ report_html_content|safe }}
+                </div>
             </div>
         </div>
 
@@ -33,6 +32,5 @@
 
 {% block scripts %}
 {{ super() }}
-<!-- Font Awesome Icons for buttons -->
 <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
 {% endblock %}

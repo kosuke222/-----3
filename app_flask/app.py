@@ -936,6 +936,7 @@ def create_report():
                 return redirect(url_for('create_report'))
             # マークダウンに変換
             html_content = markdown.markdown(report.report_markdown, extensions=["tables"])
+            html_content = f'<div class="table-responsive">{html_content}</div>'
             html_content = html_content.replace('<table>', '<table class="table table-bordered table-dark table-striped">')
             html_content = html_content.replace('<th>', '<th scope="col" class="bg-dark">')
             return render_template(
@@ -981,6 +982,7 @@ def report_list():
 def show_report(report_id):
     report = Report.query.get_or_404(report_id)
     html_content = markdown.markdown(report.report_markdown, extensions=["tables"])
+    html_content = f'<div class="table-responsive">{html_content}</div>'
     html_content = html_content.replace('<table>', '<table class="table table-bordered table-dark table-striped">')
     html_content = html_content.replace('<th>', '<th scope="col" class="bg-dark">')
     return render_template('report_detail.html', report=report, report_html_content=html_content)
