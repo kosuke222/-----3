@@ -7,29 +7,45 @@ APIキー設定
 {% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-center align-items-center min-vh-100">
-    <div class="card bg-custom-dark-2 border-0 shadow-lg p-4 rounded-4 mx-auto" >
+<style>
+    .form-control:hover {
+        background-color: #2a2a2a !important;
+        transition: background-color 0.3s ease;
+    }
+    
+
+    .btn-lg:hover {
+        opacity: 0.75;
+        transition: opacity 0.3s ease;
+    }
+</style>
+
+<div class="container mt-4">
+    <div class="card bg-custom-dark-2 border-0 shadow-lg p-4 rounded-4 mx-auto" style="width: 100%; max-width: 700px;">
         <h2 class="text-center fw-bold mb-4"> APIキー入力</h2>
         
         <form method="POST" action="{{ url_for('api_key') }}">
             <!-- VirusTotal APIキー -->
             <div class="mb-3">
-                <input type="text" name="virustotal_api_key" class="form-control form-control-lg rounded-pill bg-dark text-white border-0"
+                <input type="text" name="virustotal_api_key" class="form-control rounded-pill bg-dark text-white border-0"
                        placeholder="VirusTotal APIキー" required>
             </div>
 
             <!-- malwareBazaar APIキー -->
             <div class="mb-5">
-                <input type="text" name="malwarebazaar_api_key" class="form-control form-control-lg rounded-pill bg-dark text-white border-0"
+                <input type="text" name="malwarebazaar_api_key" class="form-control rounded-pill bg-dark text-white border-0"
                        placeholder="malwareBazaar APIキー" required>
             </div>
 
             <!-- 登録ボタン -->
-            <div class="d-grid">
-                <button type="submit" class="btn btn-lg rounded-pill text-white fw-bold"
-                        style="background: linear-gradient(90deg, #005CFF 0%, #00C2FF 100%);">
-                    保存
-                </button>
+            
+             <div class="row">
+                <div class="col-auto mx-auto">
+                    <button type="submit" class="btn btn-lg rounded-pill text-white fw-bold"
+                            style="background: linear-gradient(90deg, #005CFF 0%, #00C2FF 100%); min-width: 150px; border: none; outline: none;">
+                        保存
+                    </button>
+                </div>
             </div>
         </form>
 
