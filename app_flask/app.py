@@ -148,6 +148,9 @@ def get_virustotal_data(sha256_hash: str) -> tuple[dict | None, dict | None]:
             print(f"VirusTotal APIのリクエスト制限に達しました。")
             wait_until_utc_midnight()
             return get_virustotal_data(sha256_hash)
+        elif files_response.status_code == 401 or files_response.status_code == 403:
+            flash("VirusTotalのAPIキーが無効または権限がありません。APIキー設定を確認してください。", "danger")
+            return None, None
         
         files_response.raise_for_status()
         files_data = files_response.json()
@@ -779,6 +782,11 @@ def signup():
             (User.username == user) | (User.email == email)
         ).first()
 
+        # ユーザー名の文字数チェック
+        if len(user) > 20:
+            flash("ユーザー名は20文字以内で入力してください。", "danger")
+            return redirect(url_for("signup"))
+
         if existing_user:
             flash("このユーザー名またはメールアドレスは既に登録されています。", "warning")
             return redirect(url_for("signup"))
@@ -901,8 +909,14 @@ def api_key():
         db.session.commit()
 
         flash("APIキーが保存されました。", "success")
-        return redirect(url_for('api_key'))
-    return render_template('api_key.html')
+        return redirect(url_for('home'))
+    
+    is_key_registered = False
+    if current_user.virustotal_api_key and current_user.malwarebazaar_api_key:
+        is_key_registered = True
+        
+    return render_template('api_key.html', is_key_registered=is_key_registered)
+
 
 # G-009 レポート作成画面
 @app.route('/create_report', methods=['GET', 'POST'])
