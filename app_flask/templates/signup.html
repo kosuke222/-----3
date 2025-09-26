@@ -13,8 +13,8 @@
         <form method="POST" action="{{ url_for('signup') }}">
             <!-- ユーザー名 -->
             <div class="mb-3">
-                <input type="user" name="user" class="form-control form-control-lg rounded-pill bg-dark text-white border-0"
-                       placeholder="ユーザー名" required>
+                <input type="text" name="user" class="form-control form-control-lg rounded-pill bg-dark text-white border-0"
+                       placeholder="ユーザー名" maxlength="20" required>
             </div>
 
             <!-- パスワード -->

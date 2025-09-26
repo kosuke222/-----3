@@ -66,23 +66,21 @@
     {% if show_header|default(True) %}
     <header class="bg-custom-dark-2 border-bottom border-custom sticky-top">
         {% block header %}
-        <nav class="navbar">
-            <div class="container-fluid position-relative d-flex justify-content-between">
-                
-                <div>
-                    {% if show_back_button %}
-                    <button onclick="history.back()" class="btn btn-logout">
-                        <i class="bi bi-arrow-left"></i> 戻る
-                    </button>
-                    {% endif %}
-                </div>
+<nav class="navbar">
+    <div class="container-fluid d-flex flex-column align-items-center py-2">
+        <a class="navbar-brand mb-2 h1 fs-5" href="{{ url_for('home') }}">
+            {% block header_title %}Malware-Analysis-OSINT-Tool{% endblock %}
+        </a>
 
-                <div class="position-absolute top-50 start-50 translate-middle">
-                    <a class="navbar-brand mb-0 h1 fs-5" href="{{ url_for('home') }}">
-                        {% block header_title %}Malware-Analysis-OSINT-Tool{% endblock %}
-                    </a>
-                </div>
-
+        <div class="d-flex justify-content-between w-100">
+            <div>
+                {% if show_back_button %}
+                <button onclick="history.back()" class="btn btn-logout">
+                    <i class="bi bi-arrow-left"></i> 戻る
+                </button>
+                {% endif %}
+            </div>
+            <div>
                 {% if current_user.is_authenticated %}
                 <div class="dropdown">
                     <button class="btn btn-logout dropdown-toggle" type="button" id="userMenu" data-bs-toggle="dropdown" aria-expanded="false">
@@ -94,10 +92,14 @@
                         <li><a class="dropdown-item" href="{{ url_for('logout') }}">ログアウト</a></li>
                     </ul>
                 </div>
+                {% else %}
+                <a href="{{ url_for('login') }}" class="btn btn-logout">ログイン</a>
                 {% endif %}
             </div>
-        </nav>
-        {% endblock %}
+        </div>
+    </div>
+</nav>
+{% endblock %}
     </header>
     {% endif %}
 
