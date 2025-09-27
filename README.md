@@ -93,3 +93,28 @@ docker-compose up --build
 <img width="2156" height="1180" alt="image" src="https://github.com/user-attachments/assets/179a0755-d519-4f13-8f86-fe5c38c67bcc" />
 検索も可能です。  
 <img width="2159" height="1180" alt="image" src="https://github.com/user-attachments/assets/827f7d9f-00ec-447c-8f0a-288e7e706449" />
+
+## 技術仕様  
+### システム構成図
+- **Webサーバー:** Nginx  
+- **アプリケーションサーバー:** Flask  
+- **データベース:** PostgreSQL
+- **インフラストラクチャ:** Docker
+
+上記コンテナをDocker Composeで管理しています。  
+
+### 外部API  
+- **OpenAI API:** OSINT情報の収集と要約に利用。  
+- **VirusTotal API:** ハッシュ値に基づく検体の基本情報（挙動、通信先、IoCなど）の取得に利用。 
+- **MalwareBazaar API:** 類似検体のハッシュ値の取得に利用。  
+
+### データベース設計  
+
+**usersテーブル**
+- ユーザ情報を管理  
+**reportsテーブル**
+- 生成されたレポート情報を管理
+**rolesテーブル**
+- ロールの番号とその役割を管理  
+**users_rolesテーブル**
+- ユーザがどのロールかを管理   
