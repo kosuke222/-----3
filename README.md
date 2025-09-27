@@ -26,22 +26,22 @@ POSTGRES_HOST=db
 POSTGRES_PORT=5432
 ```
 3. .env.flaskをapp_flask配下に設置し次のように記述
+SMTPサーバを作成すること
 ```
 OPENAI_API_KEY=(あなたの取得したOpenAIAPIキー)
 FLASK_APP=app.py
 FLASK_DEBUG=1
-SECRET_KEY=(作成したkey)
-SECURITY_PASSWORD_SALT=(作成したkey)
+SECRET_KEY=(secrets.token_hex(16)などで作成したkey)
+SECURITY_PASSWORD_SALT=(secrets.token_hex(16)などで作成したkey)
 RESET_TOKEN_MAX_AGE=3600
-MAIL_SERVER=mailhog
-MAIL_PORT=1025
-MAIL_USE_TLS=0
-MAIL_USERNAME=no-reply@example.com
-MAIL_PASSWORD=
-MAIL_DEFAULT_SENDER=no-reply@example.com
+MAIL_SERVER=smtp.gmail.com
+MAIL_PORT=587
+MAIL_USE_TLS=1
+MAIL_USERNAME=xxx@gmail.com   # 使用するgmailアドレス 
+MAIL_PASSWORD=xxxxxxxxxxxxxxxx    # ログイン用のパスワードではなく，googleアカウントで発行可能な16桁のアプリパスワード
+MAIL_DEFAULT_SENDER=xxx@gmail.com   
 APP_BASE_URL=http://localhost:5001
 ```
-
 4. docker desktopを起動し，次のコマンドを実行
 ```
 docker-compose up --build
