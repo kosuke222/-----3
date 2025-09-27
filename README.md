@@ -61,7 +61,7 @@ APP_BASE_URL=http://localhost:5001
 ```
 docker-compose up --build
 ```
-5. localhost:5001/loginにアクセス  
+5. localhostにアクセス  
 <img width="2159" height="1183" alt="image" src="https://github.com/user-attachments/assets/25cfb137-ddad-4725-a616-7a3786686cbc" />
   
 
