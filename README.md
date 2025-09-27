@@ -72,9 +72,10 @@ VirusTotal APIキーと、Malware Bazaar APIキーを取得しフォームに入
 <img width="2159" height="1176" alt="image" src="https://github.com/user-attachments/assets/990509a9-1d4f-4b70-8d1b-5f3e2bb08c5b" />
 
 6. レポート一覧から作成したレポートの閲覧が可能
-<img width="2159" height="1179" alt="image" src="https://github.com/user-attachments/assets/da8f3b79-8867-4d90-a708-6b2b7467559a" />
-他ユーザが生成したレポートも閲覧が可能、キーワードを用いた検索もできる
-<img width="2159" height="1176" alt="image" src="https://github.com/user-attachments/assets/aa54a4e1-26d0-45de-8625-969ada3b01d1" />
+<img width="2156" height="1180" alt="image" src="https://github.com/user-attachments/assets/179a0755-d519-4f13-8f86-fe5c38c67bcc" />  
+他ユーザが生成したレポートも閲覧が可能、キーワードを用いた検索もできる  
+<img width="2159" height="1180" alt="image" src="https://github.com/user-attachments/assets/827f7d9f-00ec-447c-8f0a-288e7e706449" />
+
 
 
 
