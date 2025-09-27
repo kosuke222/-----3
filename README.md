@@ -95,7 +95,8 @@ docker-compose up --build
 <img width="2159" height="1180" alt="image" src="https://github.com/user-attachments/assets/827f7d9f-00ec-447c-8f0a-288e7e706449" />
 
 ## 技術仕様  
-### システム構成図
+### システム構成図　　
+<img width="531" height="401" alt="system_mws_hackson drawio" src="https://github.com/user-attachments/assets/52f26441-3dd8-4831-a44c-5fa427d8027d" />　　
 - **Webサーバー:** Nginx  
 - **アプリケーションサーバー:** Flask  
 - **データベース:** PostgreSQL
@@ -109,6 +110,7 @@ docker-compose up --build
 - **MalwareBazaar API:** 類似検体のハッシュ値の取得に利用。  
 
 ### データベース設計  
+<img width="721" height="386" alt="ER図 drawio" src="https://github.com/user-attachments/assets/5fc66608-ea16-4f1b-a8c1-6229c482a189" />  
 
 - **usersテーブル**  
   ユーザ情報を管理  
