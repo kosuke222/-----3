@@ -10,7 +10,7 @@
 - etc  
   
 などを調査し、md形式のレポートにまとめます。
-### 使い方  
+### セットアップ  
 
 1. ローカルにファイルを作成
 ```bash
@@ -26,7 +26,8 @@ POSTGRES_HOST=db
 POSTGRES_PORT=5432
 ```
 3. .env.flaskをapp_flask配下に設置し次のように記述
-SMTPサーバを作成すること
+- OpenAI APIキーを発行すること
+- SMTPサーバを作成すること
 ```
 OPENAI_API_KEY=(あなたの取得したOpenAIAPIキー)
 FLASK_APP=app.py
@@ -42,14 +43,15 @@ MAIL_PASSWORD=xxxxxxxxxxxxxxxx    # ログイン用のパスワードではな�
 MAIL_DEFAULT_SENDER=xxx@gmail.com   
 APP_BASE_URL=http://localhost:5001
 ```
-4. docker desktopを起動し，次のコマンドを実行
+### 使い方
+1. docker desktopを起動し，次のコマンドを実行
 ```
 docker-compose up --build
 ```
-5. localhost:5001/loginにアクセスする  
+2. localhost:5001/loginにアクセスする  
 <img width="2159" height="1183" alt="image" src="https://github.com/user-attachments/assets/25cfb137-ddad-4725-a616-7a3786686cbc" />
 
-6. アカウントを作成する
+3. アカウントを作成する
 アカウントをお持ちではない方をクリックし，入力フォームに情報を入力する  
 <img width="2159" height="1184" alt="image" src="https://github.com/user-attachments/assets/14403c46-0e65-4ad7-9ac9-187309153b15" />
 
@@ -59,17 +61,17 @@ docker-compose up --build
 ホーム画面に遷移する  
 <img width="2158" height="1180" alt="image" src="https://github.com/user-attachments/assets/3b030c07-a601-46cb-a3dd-4482d0640fdb" />
 
-7. APIキーの設定
+4. APIキーの設定
 VirusTotal APIキーと、Malware Bazaar APIキーを取得しフォームに入力
 <img width="2154" height="1179" alt="image" src="https://github.com/user-attachments/assets/2fb37723-0784-4e09-b3d5-c124bda0957c" />
 
-8. レポート生成
+5. レポート生成
 「レポートを作成する」をクリックし、調査したい検体のsha256ハッシュ値を入力する。  
 <img width="2159" height="1181" alt="image" src="https://github.com/user-attachments/assets/7739b927-4d25-416b-b329-07f043900556" />
 すると、レポートが生成される(七分ほどかかる)  
 <img width="2159" height="1176" alt="image" src="https://github.com/user-attachments/assets/990509a9-1d4f-4b70-8d1b-5f3e2bb08c5b" />
 
-9. レポート一覧から作成したレポートの閲覧が可能
+6. レポート一覧から作成したレポートの閲覧が可能
 <img width="2159" height="1179" alt="image" src="https://github.com/user-attachments/assets/da8f3b79-8867-4d90-a708-6b2b7467559a" />
 他ユーザが生成したレポートも閲覧が可能、キーワードを用いた検索もできる
 <img width="2159" height="1176" alt="image" src="https://github.com/user-attachments/assets/aa54a4e1-26d0-45de-8625-969ada3b01d1" />
