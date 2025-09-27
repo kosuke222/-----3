@@ -44,34 +44,34 @@ MAIL_DEFAULT_SENDER=xxx@gmail.com
 APP_BASE_URL=http://localhost:5001
 ```
 ### 使い方
-1. docker desktopを起動し，次のコマンドを実行
+1. docker desktopを起動し，次のコマンドを実行  
 ```
 docker-compose up --build
 ```
 2. localhost:5001/loginにアクセスする  
 <img width="2159" height="1183" alt="image" src="https://github.com/user-attachments/assets/25cfb137-ddad-4725-a616-7a3786686cbc" />
-
-3. アカウントを作成する
+  
+3. アカウントを作成する  
 アカウントをお持ちではない方をクリックし，入力フォームに情報を入力する  
 <img width="2159" height="1184" alt="image" src="https://github.com/user-attachments/assets/14403c46-0e65-4ad7-9ac9-187309153b15" />
-
+  
 ログイン画面に戻るので，必要情報を入力しログインをクリック
 <img width="2159" height="1183" alt="image" src="https://github.com/user-attachments/assets/66e6fcb1-4a2a-46e8-882b-ffae0109b7a4" />
 
 ホーム画面に遷移する  
 <img width="2158" height="1180" alt="image" src="https://github.com/user-attachments/assets/3b030c07-a601-46cb-a3dd-4482d0640fdb" />
 
-4. APIキーの設定
-VirusTotal APIキーと、Malware Bazaar APIキーを取得しフォームに入力
+4. APIキーの設定  
+VirusTotal APIキーと、Malware Bazaar APIキーを取得しフォームに入力  
 <img width="2154" height="1179" alt="image" src="https://github.com/user-attachments/assets/2fb37723-0784-4e09-b3d5-c124bda0957c" />
 
-5. レポート生成
+5. レポート生成  
 「レポートを作成する」をクリックし、調査したい検体のsha256ハッシュ値を入力する。  
-<img width="2159" height="1181" alt="image" src="https://github.com/user-attachments/assets/7739b927-4d25-416b-b329-07f043900556" />
+<img width="2159" height="1181" alt="image" src="https://github.com/user-attachments/assets/7739b927-4d25-416b-b329-07f043900556" />  
 すると、レポートが生成される(七分ほどかかる)  
-<img width="2159" height="1176" alt="image" src="https://github.com/user-attachments/assets/990509a9-1d4f-4b70-8d1b-5f3e2bb08c5b" />
+<img width="2159" height="1176" alt="image" src="https://github.com/user-attachments/assets/990509a9-1d4f-4b70-8d1b-5f3e2bb08c5b" />  
 
-6. レポート一覧から作成したレポートの閲覧が可能
+6. レポート一覧から作成したレポートの閲覧が可能  
 <img width="2156" height="1180" alt="image" src="https://github.com/user-attachments/assets/179a0755-d519-4f13-8f86-fe5c38c67bcc" />  
 他ユーザが生成したレポートも閲覧が可能、キーワードを用いた検索もできる  
 <img width="2159" height="1180" alt="image" src="https://github.com/user-attachments/assets/827f7d9f-00ec-447c-8f0a-288e7e706449" />
