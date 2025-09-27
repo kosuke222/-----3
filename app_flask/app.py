@@ -722,7 +722,7 @@ def run_full_analysis(sha256_hash: str) -> dict | None:
 #[test]起動直後に/に行くとtest.htmlを表示するエンドポイント
 @app.route('/')
 def index():
-    return render_template('test.html',page_title='API Test page')
+    return redirect(url_for('login'))
 
 #[test]APIを叩くエンドポイント
 @app.route('/api/test', methods=['GET'])

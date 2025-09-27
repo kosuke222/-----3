@@ -1,10 +1,16 @@
 version: '3.8'
 
 services:
+  # Nginx サービスを新しく追加
+  nginx:
+    build: ./nginx
+    ports:
+      - "80:80" # ホストの80番ポートをコンテナの80番ポートにマッピング
+    depends_on:
+      - web
+
   web:
     build: ./app_flask
-    ports:
-      - "5001:5001"
     volumes:
       - ./app_flask:/app
     env_file:
@@ -12,6 +18,7 @@ services:
       - ./.env.db
     depends_on:
       - db
+      
   db:
     image: postgres:14-alpine
     volumes:
@@ -21,11 +28,6 @@ services:
       - ./.env.db
     ports:
       - "5432:5432"
-  mailhog:
-    image: mailhog/mailhog
-    ports:
-      - "8025:8025"
-      - "1025:1025"
 
 volumes:
   postgres_data:
